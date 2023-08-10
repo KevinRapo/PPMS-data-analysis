@@ -187,6 +187,7 @@ def get_M(data, token):
 temperature = get_Temp(data_measurements)
 magnetic_field = get_H(data_measurements)
 moment = get_M(data_measurements, token)
+
 #--------------------------------------------- MEASUREMENT ANALYSIS----------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -214,7 +215,6 @@ def min_max_range(data):
 
 ranges_temp = min_max_range(temperature)
 intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
-index_val = intervals.index.values#values of the indices
 
 def mood_temp(intervals):
     #determines at which temperatures the MvsH measurement was made
@@ -395,10 +395,6 @@ separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
 
 
 #-----------------------DIVIDING MEASUREMENTS BY SAMPLE SIZE--------------------------------------
-
-#thickness = float(input("Insert sample thickness in number format: "))
-#thickness = simpledialog.askfloat("Enter a number", "Please enter a number:")
-#thickness = 1
 
 def calc_volume(size, thickness):
     if size is None or thickness is None:
@@ -590,5 +586,4 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
 
 plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH)
 
-test2
 

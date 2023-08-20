@@ -5,12 +5,15 @@ Created on Mon Jun 19 13:45:38 2023
 @author: kevin
 """
 
+import statistics as stat
 import re
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import math
 import tkinter as tk
 from tkinter import filedialog
-
+from tkinter import simpledialog
 
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
@@ -137,9 +140,8 @@ def round_H_to_even_round_number(val):
 max_range = round_H_to_even_round_number(val)
 print("Range:",max_range)
 
-#pd_table.to_csv(f"C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables/PdCal_{max_range}_Oe.csv")
-pd_table.to_csv(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables/PdCal_{max_range}_Oe.csv")
-
+pd_table.to_csv(f"C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables/PdCal_{max_range}_Oe.csv") #PC
+#pd_table.to_csv(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables/PdCal_{max_range}_Oe.DAT") "laptop
 
 
 

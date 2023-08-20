@@ -593,7 +593,7 @@ def plot_MvsT(separated_MvsT, MvsT_indices, const_H_values):
     return None
 
 
-def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):#!!!
+def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
     #Plots the MvsH measurement pair with different colors
     i = 0
     
@@ -605,9 +605,14 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):#!!!
         M2 = separated_MvsH[i][1]["Moment (emu)"] 
         
         for key in interpolated_MvsH:
-            raise ValueError("Ei süvenenud, aga probleem vist selles, et ei ole interpoleerimise jaoks tabelit seega pikkused ei klapi")
+            # raise ValueError("Ei süvenenud, aga probleem vist selles, et ei ole interpoleerimise jaoks tabelit seega pikkused ei klapi")
             H3 = interpolated_MvsH[key][0]["True Field (Oe)"]
             H4 = interpolated_MvsH[key][1]["True Field (Oe)"]
+            
+            if len(H3) != len(M1) or len(H4) != len(M2):
+                print(f"Warning: Length mismatch between True Field and Moment data for {const_T_values[i]} K.") #!!! error selles,et pole correction tabelit iga välja tugevuse jaoks
+                continue  # Continue to the next iteration
+                
             ax.plot(H3, M1, color = "red", label = "True Field")
             ax.plot(H4, M2, color = "red")
             ax.legend()

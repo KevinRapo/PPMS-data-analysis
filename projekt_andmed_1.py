@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import filedialog
 from scipy.interpolate import interp1d
+from scipy.signal import argrelextrema
 
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
@@ -82,7 +83,7 @@ def extract_float_with_unit(string):
 def header_value_check(info, name):
     #header_value_check checks the value of interest, is the value nan or is it just a string in 
     #the wrong format, otherwise outputs the float value
-    print(f"Checking: {name}, {info}")#Hetkel jääb
+    print(f"Checking:{name}, {info}")#Hetkel jääb
     
     if not isinstance(info, str) and np.isnan(info): #Checks whether the value is not a string and if it is a nan value
         print(f"NO VALID VALUE FOR {name}, value is NAN \n")
@@ -162,7 +163,7 @@ data_measurements = get_measurements(file_path)[get_measurements(file_path)["Tra
 measurement_table = data_measurements[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)",
                                        "Moment (emu)", "M. Std. Err. (emu)"]]
 
-def get_Temp(data):
+def get_temp(data):
     temp = data['Temperature (K)']
     return temp
 
@@ -177,7 +178,7 @@ def get_M(data, token):
     moment = data["DC Moment (emu)"]
     return moment
 
-temperature = get_Temp(data_measurements)
+temperature = get_temp(data_measurements)
 magnetic_field = get_H(data_measurements)
 moment = get_M(data_measurements, token)
 
@@ -245,7 +246,7 @@ def get_const_temp(const):
         
     return const_temp
 
-#SIIANI ON MvsT UNIVERSAALNE, SEDA OSA KASUTAB KAS KÕIKIDEL JUHTUDEL
+#SIIANI ON MvsT UNIVERSAALNE, SEDA OSA KASUTAB KÕIKIDEL JUHTUDEL
 
 #------------Filtering const temp points from the data for MvsH------
 
@@ -344,8 +345,8 @@ def search_file(folder_path, number):
         
     return None
 
-#folder_path = 'C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables' #PC
-folder_path = "C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables" #Laptop
+folder_path = 'C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables' #PC
+#folder_path = "C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables" #Laptop
 
 def nr_to_dict(numbers_to_search):
     #returns the corresponding amount of error tables in a dictionary form with the key being the value the table is for
@@ -452,57 +453,82 @@ def get_measurement_MvsT(const_H_values):
 
 #------------------Separating MvsT measurements--------------------
 
-# def sliding_window(data, window_size, step_size):
-#     for i in range(0, len(data) - window_size + 1, step_size):
-#         window = data[i:i + window_size]
-#         yield window
-
-# # Sample data (replace with your data)
-# numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-# # Define window size and step size
 # window_size = 3
-# step_size = 1 
+# step_size = 3
 
-# Iterate over sliding windows and perform some operation
-# for window in sliding_window(numbers, window_size, step_size):
-#     # Perform operations on the window
-#     print(window)  
+# def separate_series_into_pair(data):
+#     #COMMENT
+#     global max_index, smth
     
-# GPT ENDA NÄIDE TSÜKELDAMISEKS
-#--------------------------------------------------------------------
-
-#!!! SEDA FUNKTSIOONI TEEME HETKEL SELLEKS, ET ERALDADA ANDMED
-def separate_MvsT_index_for_MvsT(measurement_table, MvsT_indices): 
-
-    # Decimation
-    decimation_factor = 2
-    downsampled_temp = temperature[::decimation_factor]
+#     previous_max = [data[0]]
+#     current_max = []
+#     index = []
+#     return_idx = []
+#     i = 0
+#     for i in range(0, len(data) - window_size + 1, step_size):
+#         window = data[i:i+window_size]
+#         current_max = window.max()
+#         max_index = window.idxmax()
+#         if current_max >= previous_max:
+#             index = max_index
+#             previous_max = current_max
+#         else:
+#             print(window)
+#             return_idx = index
+#         print(f"\nCurrent max: {current_max}, previous max: {previous_max}, index: {max_index}\n")
+#         i += 1
+#     print(i)
+#     return return_idx
     
-    # Calculate the gradient (approximated using finite differences)
-    global gradient1
-    gradient1 = np.diff(downsampled_temp)
+def separation_index_for_series(data, column_name, n=10): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+    """
+    Find local peaks indices (maxima and minima) in a DataFrame or Series.
 
-    # Find the indices where the gradient changes from positive to negative
-    transition_indices = np.where(np.diff(np.sign(gradient1)) < 0)[0]
-    print("Mis indeksi võtab?:", transition_indices)
-    # Initialize segments
-    segments = []
+    Parameters:
+    - data: DataFrame or Series.
+    - column_name: Name of the column to analyze.
+    - n: Number of points to be checked before and after.
 
-    # Iterate through the transition indices to create segments
-    start_index = 0
-    for end_index in transition_indices:
-        segments.append(temperature[start_index:end_index + 1])
-        start_index = end_index + 1
+    Returns:
+    - DataFrame with 'min' and 'max' columns indicating local minima and maxima.
+    """
+    global max_indices, min_indices
+    
+    if isinstance(data, pd.Series):
+        # Convert a Series to a DataFrame with a specified column name
+        data = pd.DataFrame({column_name: data})
 
-    # Add the last segment
-    segments.append(temperature[start_index:])
+    # Find local peaks
+    min_indices = argrelextrema(data[column_name].values, np.less_equal, order=n)[0]
+    max_indices = argrelextrema(data[column_name].values, np.greater_equal, order=n)[0]
 
-    # # Print segments
-    # for i, segment in enumerate(segments):
-    #     print(f"Segment {i + 1}: {segment}")
+    # Create a DataFrame to store results
+    local_peaks = pd.DataFrame(index=data.index)
+    local_peaks['min'] = np.nan
+    local_peaks['max'] = np.nan
+    
+    # Fill in the 'min' and 'max' columns with peak values
+    local_peaks.loc[min_indices, 'min'] = data.iloc[min_indices][column_name]
+    local_peaks.loc[max_indices, 'max'] = data.iloc[max_indices][column_name]
+    
+    # Extract max min indices
+    mask = local_peaks.notna()
+    max_indices = local_peaks["max"].index[mask["max"]]
+    min_indices = local_peaks["min"].index[mask["min"]]
+    
+    # Plot results
+    plt.scatter(data.index, local_peaks['min'], c='r', label='Minima')
+    plt.scatter(data.index, local_peaks['max'], c='g', label='Maxima')
+    plt.plot(data.index, data[column_name], label=column_name)
+    plt.legend()
+    plt.show()
+    
+    # # Separate the series into pairs
+    # list
+    # if max_indices[0] > min_indices[0]:
         
-    return transition_indices
+    return max_indices
+
 
 def separate_MvsT_index_for_both(measurement_table, MvsT_indices):
     #Finds the index where to separate the measurement into multiple series,
@@ -561,12 +587,13 @@ def plot_MvsT(separated_MvsT, MvsT_indices, const_H_values):
         ax.set_ylabel("Moment (emu)")
         #ax.legend() #KAS SIIN KA LEGENDI VAJA?
         ax.grid(True)
-        fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsT_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200)
+        #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsT_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop !!!
+        fig.savefig(f"C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/MvsT_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #PC
         
     return None
 
 
-def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
+def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):#!!!
     #Plots the MvsH measurement pair with different colors
     i = 0
     
@@ -577,13 +604,13 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
         H2 = separated_MvsH[i][1]["Magnetic Field (Oe)"]
         M2 = separated_MvsH[i][1]["Moment (emu)"] 
         
-        if i == 1:
-            for key in interpolated_MvsH:
-                H3 = interpolated_MvsH[key][0]["True Field (Oe)"]
-                H4 = interpolated_MvsH[key][1]["True Field (Oe)"]
-                ax.plot(H3, M1, color = "red", label = "True Field")
-                ax.plot(H4, M2, color = "red")
-                ax.legend()
+        for key in interpolated_MvsH:
+            raise ValueError("Ei süvenenud, aga probleem vist selles, et ei ole interpoleerimise jaoks tabelit seega pikkused ei klapi")
+            H3 = interpolated_MvsH[key][0]["True Field (Oe)"]
+            H4 = interpolated_MvsH[key][1]["True Field (Oe)"]
+            ax.plot(H3, M1, color = "red", label = "True Field")
+            ax.plot(H4, M2, color = "red")
+            ax.legend()
 
         ax.plot(H1,M1,color = "blue", label = "Ascending")
         ax.plot(H2,M2,color = "orange", label = "Descending")
@@ -593,7 +620,8 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
         ax.set_ylabel("Moment (emu)")
         ax.legend() #Hetkel loodab lihtsalt sellele, et algav tsükkel on kasvav, KÜSI ÜLE!
         ax.grid(True)
-        fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200)
+        #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
+        fig.savefig(f"C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #PC
         i += 1
         
     return None
@@ -604,6 +632,7 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
 RATIO_LEVEL = 0.05
 
 def data_check(measurement_table):
+    #Checks what measurements the file contains
     
     type_token = {"Temperature": None, "Field": None}
     
@@ -659,7 +688,7 @@ def data_check(measurement_table):
 
 type_token = data_check(measurement_table)
 
-def MvsH(measurement_table):
+def MvsH_solo(measurement_table):
     
     ranges_temp = min_max_range(temperature)
     intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
@@ -676,27 +705,54 @@ def MvsH(measurement_table):
     
     return separated_MvsH, MvsH_indices, const_T_values
 
+def MvsH_duo(measurement_table): # EI KASUTA HETKEL
+    
+    ranges_temp = min_max_range(temperature)
+    intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
+    
+    const_T_interval = mood_temp_for_both(intervals)
+    const_T_values = get_const_temp(const_T_interval)
+    
+    #SIIN VAATA filtered_values üle, äkki saad hiljem kasutada
+    unfiltered_MvsH_T_values, unfiltered_MvsH_indices = get_measurement_MvsH(const_T_values)
+    MvsH_indices = filter_measurement_MvsH(unfiltered_MvsH_indices)
+    
+    separated_MvsH_indices = separate_MvsH_index(measurement_table, MvsH_indices) #the indices where the separation is going to be done
+    separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
+    
+    return separated_MvsH, MvsH_indices, const_T_values
 
-def MvsT(measurement_table):
-    global M_count, const_H_values, MvsT_indices, separated_MvsT_indices, separated_MvsT
+def MvsT_solo(measurement_table):
+    #global M_count, const_H_values, MvsT_indices, separated_MvsT_indices, separated_MvsT
     
     M_count = magnetic_field.value_counts()
     const_H_values = get_const_M_for_MvsT(M_count)
     
     MvsT_indices = get_measurement_MvsT(const_H_values)
-    separated_MvsT_indices = separate_MvsT_index_for_MvsT(measurement_table, MvsT_indices)#!!! the indices where the separation is going to be done
+    separated_MvsT_indices = separation_index_for_series(measurement_table, "Temperature (K)")# the indices where the separation is going to be done
+    separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
+    
+    return separated_MvsT, MvsT_indices, const_H_values
+
+def MvsT_duo(measurement_table): #EI KASUTA HETKEL
+    
+    M_count = magnetic_field.value_counts()
+    const_H_values = get_const_M_for_both(M_count)
+    
+    MvsT_indices = get_measurement_MvsT(const_H_values)
+    separated_MvsT_indices = separate_MvsT_index_for_both(measurement_table, "Temperature (K)")# the indices where the separation is going to be done
     separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
     
     return separated_MvsT, MvsT_indices, const_H_values
 
 
-# MvsT(measurement_table)
 
 def what_path_main(type_token, measurement_table):
     
     if type_token["Temperature"] == "discrete" and type_token["Field"] == "continous":
         
-        separated_MvsH, MvsH_indices, const_T_values = MvsH(measurement_table)
+        global interpolated_MvsH, separated_MvsH, MvsH_indices, const_T_values
+        separated_MvsH, MvsH_indices, const_T_values = MvsH_solo(measurement_table)
         
         min_max_MvsH_val = round_H(MvsH_indices) #Magnetic field value indicating the +- field value
         error_tables = nr_to_dict(min_max_MvsH_val)
@@ -710,15 +766,60 @@ def what_path_main(type_token, measurement_table):
     
     elif type_token["Temperature"] == "continous" and type_token["Field"] == "discrete":
         
-        separated_MvsT, MvsT_indices, const_H_values = MvsT(measurement_table)
+        separated_MvsT, MvsT_indices, const_H_values = MvsT_solo(measurement_table)
         
         plot_MvsT(separated_MvsT, MvsT_indices, const_H_values)
         
         print("\n as jõudis MvsT lõppu?")
         
         return separated_MvsT, MvsT_indices, const_H_values
-
-# what_path_main(type_token, measurement_table)
+                
+    
+    elif type_token["Temperature"] == "continous" and type_token["Field"] == "continous":
+        
+        # global ranges_temp, intervals, const_T_interval, const_T_values, M_count, const_H_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
+        #     MvsH_indices, MvsT_indices, separated_MvsT_indices, separated_MvsT, separated_MvsH_indices, separated_MvsH, min_max_MvsH_val, error_tables,\
+        #     interpolated_MvsH
+        
+        #This part finds the constant temperatures from the data (MvsH)
+        ranges_temp = min_max_range(temperature)
+        intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
+        const_T_interval = mood_temp_for_both(intervals)
+        const_T_values = get_const_temp(const_T_interval)
+        
+        #This part finds the constant magnetic field from the data (MvsT)
+        M_count = magnetic_field.value_counts()
+        const_H_values = get_const_M_for_both(M_count)
+        
+        #Filtering const temp points from the data for MvsH
+        unfiltered_MvsH_T_values, unfiltered_MvsH_indices = get_measurement_MvsH(const_T_values)
+        MvsH_indices = filter_measurement_MvsH(unfiltered_MvsH_indices)
+        
+        #Filtering const H points from the data for MvsT
+        MvsT_indices = get_measurement_MvsT(const_H_values)
+        
+        #Separating MvsT measurements
+        separated_MvsT_indices = separate_MvsT_index_for_both(measurement_table, MvsT_indices)# the indices where the separation is going to be done
+        separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
+        
+        #Separating MvsH measurements
+        separated_MvsH_indices = separate_MvsH_index(measurement_table, MvsH_indices) #the indices where the separation is going to be done
+        separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
+        
+        #MvsH correction
+        min_max_MvsH_val = round_H(MvsH_indices) #Magnetic field value indicating the +- field value
+        error_tables = nr_to_dict(min_max_MvsH_val)
+        interpolated_MvsH = interpolate_MvsH(separated_MvsH, error_tables)
+        
+        #Plots
+        plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH)
+        plot_MvsT(separated_MvsT, MvsT_indices, const_H_values)
+        
+        print("\n as jõudis duo lõppu?")
+        
+        return None
+    
+what_path_main(type_token, measurement_table)
 
 
 

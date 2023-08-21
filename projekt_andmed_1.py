@@ -207,7 +207,7 @@ def min_max_range(data):
         
     return values
 
-
+#Hetkel tegin väikese muutusega lihtsalt uue, et see ilusaks tegemine tuleb niikuinii, aga for both on tsükli jaoks kus mõlemad jne
 def mood_temp_for_both(intervals):
     #determines at which temperatures the MvsH measurement was made
     #outputs the interval which satisfies 20*mean
@@ -453,35 +453,11 @@ def get_measurement_MvsT(const_H_values):
 
 #------------------Separating MvsT measurements--------------------
 
-# window_size = 3
-# step_size = 3
 
-# def separate_series_into_pair(data):
-#     #COMMENT
-#     global max_index, smth
-    
-#     previous_max = [data[0]]
-#     current_max = []
-#     index = []
-#     return_idx = []
-#     i = 0
-#     for i in range(0, len(data) - window_size + 1, step_size):
-#         window = data[i:i+window_size]
-#         current_max = window.max()
-#         max_index = window.idxmax()
-#         if current_max >= previous_max:
-#             index = max_index
-#             previous_max = current_max
-#         else:
-#             print(window)
-#             return_idx = index
-#         print(f"\nCurrent max: {current_max}, previous max: {previous_max}, index: {max_index}\n")
-#         i += 1
-#     print(i)
-#     return return_idx
-#
-#See on mingi vana näide, aga oli tunne et las korraks olla siin, äkki läheb vaja ikka!?
-    
+#SEE ON SEE ÜLDINE FUNKTSIOON MIS OSKAB ÜKSKÕIK MIS RIDA TÜKELDADA NII, KUI EKSTREEMUMID TULEVAD ÕIGESSE KOHTA JA SENI PAISTAB ET TÖÖTAB HÄSTI
+
+#Ma tean et selle funktsiooni comment on kindlasti imeline ja küll lõpuks võib kõigi jaoks midagi sarnast teha, see muidu GPT comment
+
 def separation_index_for_series(data, column_name, n=10): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
@@ -494,7 +470,7 @@ def separation_index_for_series(data, column_name, n=10): #!!! https://stackover
     Returns:
     - DataFrame with 'min' and 'max' columns indicating local minima and maxima.
     """
-    global max_indices, min_indices
+    # global max_indices, min_indices
     
     if isinstance(data, pd.Series):
         # Convert a Series to a DataFrame with a specified column name
@@ -524,10 +500,6 @@ def separation_index_for_series(data, column_name, n=10): #!!! https://stackover
     plt.plot(data.index, data[column_name], label=column_name)
     plt.legend()
     plt.show()
-    
-    # # Separate the series into pairs
-    # list
-    # if max_indices[0] > min_indices[0]:
         
     return max_indices
 
@@ -554,7 +526,9 @@ def separate_MvsT_index_for_both(measurement_table, MvsT_indices):
 def separate_MvsT(separation_index, MvsT_indices):
     #Separates the points based on the index and returns the separated series in pairs
     separated_pair = []
+    
     i = 0 #index for MvsT_indices elements
+    
     for index in separation_index:
         print("Mitmes separate_MvsT tsükkel: ",i)
         separated = []
@@ -607,11 +581,12 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
         M2 = separated_MvsH[i][1]["Moment (emu)"] 
         
         for key in interpolated_MvsH:
-            # raise ValueError("Ei süvenenud, aga probleem vist selles, et ei ole interpoleerimise jaoks tabelit seega pikkused ei klapi")
+            # See on interpoleerimise jaoks
             H3 = interpolated_MvsH[key][0]["True Field (Oe)"]
             H4 = interpolated_MvsH[key][1]["True Field (Oe)"]
             
             if len(H3) != len(M1) or len(H4) != len(M2):
+                #Siin ongi see, et ei ole interpoleeritud punkte, siis x/y erineva pikkusega ja ei saa joonistada
                 print(f"Warning: Length mismatch between True Field and Moment data for {const_T_values[i]} K.") #!!! error selles,et pole correction tabelit iga välja tugevuse jaoks
                 continue  # Continue to the next iteration
                 
@@ -758,7 +733,8 @@ def what_path_main(type_token, measurement_table):
     
     if type_token["Temperature"] == "discrete" and type_token["Field"] == "continous":
         
-        global interpolated_MvsH, separated_MvsH, MvsH_indices, const_T_values
+        # global interpolated_MvsH, separated_MvsH, MvsH_indices, const_T_values
+        
         separated_MvsH, MvsH_indices, const_T_values = MvsH_solo(measurement_table)
         
         min_max_MvsH_val = round_H(MvsH_indices) #Magnetic field value indicating the +- field value
@@ -769,7 +745,7 @@ def what_path_main(type_token, measurement_table):
         
         print("\n Kas jõudis MvsH lõppu?")
         
-        return separated_MvsH, MvsH_indices, const_T_values
+        return separated_MvsH, MvsH_indices, const_T_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
     
     elif type_token["Temperature"] == "continous" and type_token["Field"] == "discrete":
         
@@ -777,9 +753,9 @@ def what_path_main(type_token, measurement_table):
         
         plot_MvsT(separated_MvsT, MvsT_indices, const_H_values)
         
-        print("\n as jõudis MvsT lõppu?")
+        print("\n Kas jõudis MvsT lõppu?")
         
-        return separated_MvsT, MvsT_indices, const_H_values
+        return separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
                 
     
     elif type_token["Temperature"] == "continous" and type_token["Field"] == "continous":
@@ -822,9 +798,9 @@ def what_path_main(type_token, measurement_table):
         plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH)
         plot_MvsT(separated_MvsT, MvsT_indices, const_H_values)
         
-        print("\n as jõudis duo lõppu?")
+        print("\n Kas jõudis duo lõppu?")
         
-        return None
+        return separated_MvsH, MvsH_indices, const_T_values, separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
     
 what_path_main(type_token, measurement_table)
 

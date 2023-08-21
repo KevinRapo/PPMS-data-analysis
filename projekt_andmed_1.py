@@ -479,6 +479,8 @@ def get_measurement_MvsT(const_H_values):
 #         i += 1
 #     print(i)
 #     return return_idx
+#
+#See on mingi vana näide, aga oli tunne et las korraks olla siin, äkki läheb vaja ikka!?
     
 def separation_index_for_series(data, column_name, n=10): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """

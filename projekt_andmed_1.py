@@ -9,6 +9,12 @@ from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
+
+USER_PATH = os.getcwd()
+
+
+
+
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 root = tk.Tk()
@@ -16,7 +22,7 @@ root.wm_attributes('-topmost', 1)
 root.withdraw()
 
 file_path = filedialog.askopenfilename()
-
+save_to_path = os.path.dirname(file_path)
 #Opens the selected data file
 with open(file_path, 'r') as f:
     i = 0 #Rowindex, how many rows will get_header read in
@@ -158,6 +164,7 @@ def get_measurements(dataFile):
 
 #Forms a table from the measurement data and excludes all lines that contain 2 in the "Transport Action" column
 data_measurements = get_measurements(file_path)[get_measurements(file_path)["Transport Action"] != 2]
+data_measurements = data_measurements.reset_index(drop=True) #Resets the index to start from 0 continuously
 
 #HETKEL ACMS FAILIGA EI TÖÖTA
 measurement_table = data_measurements[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)",
@@ -345,7 +352,8 @@ def search_file(folder_path, number):
         
     return None
 
-folder_path = 'C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables' #PC
+folder_path = os.path.join(USER_PATH,'PdCorrection tables')
+#folder_path = 'C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables' #PC
 #folder_path = "C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables" #Laptop
 
 def nr_to_dict(numbers_to_search):
@@ -458,7 +466,7 @@ def get_measurement_MvsT(const_H_values):
 
 #Ma tean et selle funktsiooni comment on kindlasti imeline ja küll lõpuks võib kõigi jaoks midagi sarnast teha, see muidu GPT comment
 
-def separation_index_for_series(data, column_name, n=10): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separation_index_for_series(data, column_name, n = 50): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
 
@@ -470,7 +478,7 @@ def separation_index_for_series(data, column_name, n=10): #!!! https://stackover
     Returns:
     - DataFrame with 'min' and 'max' columns indicating local minima and maxima.
     """
-    # global max_indices, min_indices
+    global max_indices, min_indices, local_peaks
     
     if isinstance(data, pd.Series):
         # Convert a Series to a DataFrame with a specified column name
@@ -501,7 +509,7 @@ def separation_index_for_series(data, column_name, n=10): #!!! https://stackover
     plt.legend()
     plt.show()
         
-    return max_indices
+    return min_indices, max_indices #!!!
 
 
 def separate_MvsT_index_for_both(measurement_table, MvsT_indices):
@@ -526,28 +534,82 @@ def separate_MvsT_index_for_both(measurement_table, MvsT_indices):
 def separate_MvsT(separation_index, MvsT_indices):
     #Separates the points based on the index and returns the separated series in pairs
     separated_pair = []
+    global tabel
     
     i = 0 #index for MvsT_indices elements
+    print("Separation_index len:",len(separation_index))
+    print("MvsT_indices len:",len(MvsT_indices))
     
-    for index in separation_index:
-        print("Mitmes separate_MvsT tsükkel: ",i)
-        separated = []
-        min_index = min(MvsT_indices[i])
-        max_index = max(MvsT_indices[i])
-        sliced1 = measurement_table[["Temperature (K)","Moment (emu)"]].loc[min_index:index-1]
-        separated.append(sliced1)
-        sliced2 = measurement_table[["Temperature (K)","Moment (emu)"]].loc[index:max_index]
-        separated.append(sliced2)
-        i += 1
-        separated_pair.append(separated)
+    length = len(MvsT_indices)
+    
+    min_index_list = separation_index[0].tolist()
+    max_index_list = separation_index[1].tolist()
+    
+    
+    for indices in MvsT_indices:
         
-    return separated_pair
+        j = 0
+        tabel = measurement_table[["Temperature (K)","Moment (emu)"]].loc[indices]
+        
+        while max_index_list:
+            
+            for max_index in max_index_list:
+                
+                print("Mitmes separate_MvsT tsükkel: ",i)
+                separated = []
+                
+                #print("\n Max index:",max_index,"  min index:", min_index, "current:", index)
+                start = min_index_list[0]
+                stop = max_index_list[1]
+                
+                sliced1 = tabel.loc[min_index_list[0]:max_index]
+                separated.append(sliced1)
+                
+                # sliced2 = tabel.loc[index+1:stop]
+                
+                if j == len(min_index_list) - 1:
+                    sliced2 = tabel.loc[max_index+1:min_index_list[j]]
+                    
+                else:
+                    sliced2 = tabel.loc[max_index+1:min_index_list[j+1]] #Siit edasi
+                
+                separated.append(sliced2)
+                separated_pair.append(separated)
+                
+                min_index_list.pop(0)
+                max_index_list.pop(0)
+                j += 1
+            
+            
+        i += 1
+        
+    return separated_pair#!!!
 
+# def separate_MvsT(separation_index, MvsT_indices): 
+#     #Separates the points based on the index and returns the separated series in pairs
+#     separated_pair = []
+    
+#     i = 0 #index for MvsT_indices elements
+    
+#     for index in separation_index:
+#         print("Mitmes separate_MvsT tsükkel: ",i)
+#         separated = []
+#         min_index = min(MvsT_indices[i])
+#         max_index = max(MvsT_indices[i])
+#         sliced1 = measurement_table[["Temperature (K)","Moment (emu)"]].loc[min_index:index-1]
+#         separated.append(sliced1)
+#         sliced2 = measurement_table[["Temperature (K)","Moment (emu)"]].loc[index:max_index]
+#         separated.append(sliced2)
+#         i += 1
+#         separated_pair.append(separated)
+        
+#     return separated_pair
 
 #-----------------------PLOTTING THE DATA---------------------------------------------------------
 
 def plot_MvsT(separated_MvsT, MvsT_indices, const_H_values):
     #Plots the MvsT measurement pair with different colors
+    
     for i in range(len(MvsT_indices)):
         fig, ax = plt.subplots()
         T1 = separated_MvsT[i][0]["Temperature (K)"]
@@ -555,16 +617,16 @@ def plot_MvsT(separated_MvsT, MvsT_indices, const_H_values):
         T2 = separated_MvsT[i][1]["Temperature (K)"]
         M2 = separated_MvsT[i][1]["Moment (emu)"]
         
-        ax.plot(T1,M1,color = "red")
-        ax.plot(T2,M2,color = "green")
+        ax.plot(T1,M1,color = "green")
+        ax.plot(T2,M2,color = "red", marker = "o")
         val = const_H_values[i]
         ax.set_title(f"M vs T at {val} Oe") #hetkel
         ax.set_xlabel("Temperature (K)")
         ax.set_ylabel("Moment (emu)")
-        #ax.legend() #KAS SIIN KA LEGENDI VAJA?
+        #ax.legend()
         ax.grid(True)
-        #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsT_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop !!!
-        fig.savefig(f"C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/MvsT_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #PC
+        
+        fig.savefig(os.path.join(save_to_path,f'MvsT_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200)
         
     return None
 
@@ -603,7 +665,7 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
         ax.legend() #Hetkel loodab lihtsalt sellele, et algav tsükkel on kasvav, KÜSI ÜLE!
         ax.grid(True)
         #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
-        fig.savefig(f"C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #PC
+        fig.savefig(os.path.join(save_to_path,f'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
         i += 1
         
     return None
@@ -687,25 +749,25 @@ def MvsH_solo(measurement_table):
     
     return separated_MvsH, MvsH_indices, const_T_values
 
-def MvsH_duo(measurement_table): # EI KASUTA HETKEL
+# def MvsH_duo(measurement_table): # EI KASUTA HETKEL
     
-    ranges_temp = min_max_range(temperature)
-    intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
+#     ranges_temp = min_max_range(temperature)
+#     intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
     
-    const_T_interval = mood_temp_for_both(intervals)
-    const_T_values = get_const_temp(const_T_interval)
+#     const_T_interval = mood_temp_for_both(intervals)
+#     const_T_values = get_const_temp(const_T_interval)
     
-    #SIIN VAATA filtered_values üle, äkki saad hiljem kasutada
-    unfiltered_MvsH_T_values, unfiltered_MvsH_indices = get_measurement_MvsH(const_T_values)
-    MvsH_indices = filter_measurement_MvsH(unfiltered_MvsH_indices)
+#     #SIIN VAATA filtered_values üle, äkki saad hiljem kasutada
+#     unfiltered_MvsH_T_values, unfiltered_MvsH_indices = get_measurement_MvsH(const_T_values)
+#     MvsH_indices = filter_measurement_MvsH(unfiltered_MvsH_indices)
     
-    separated_MvsH_indices = separate_MvsH_index(measurement_table, MvsH_indices) #the indices where the separation is going to be done
-    separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
+#     separated_MvsH_indices = separate_MvsH_index(measurement_table, MvsH_indices) #the indices where the separation is going to be done
+#     separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
     
-    return separated_MvsH, MvsH_indices, const_T_values
+#     return separated_MvsH, MvsH_indices, const_T_values
 
 def MvsT_solo(measurement_table):
-    #global M_count, const_H_values, MvsT_indices, separated_MvsT_indices, separated_MvsT
+    global M_count, const_H_values, MvsT_indices, separated_MvsT_indices, separated_MvsT
     
     M_count = magnetic_field.value_counts()
     const_H_values = get_const_M_for_MvsT(M_count)
@@ -714,18 +776,18 @@ def MvsT_solo(measurement_table):
     separated_MvsT_indices = separation_index_for_series(measurement_table, "Temperature (K)")# the indices where the separation is going to be done
     separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
     
-    return separated_MvsT, MvsT_indices, const_H_values
+    return separated_MvsT, MvsT_indices, const_H_values #!!!
 
-def MvsT_duo(measurement_table): #EI KASUTA HETKEL
+# def MvsT_duo(measurement_table): #EI KASUTA HETKEL
     
-    M_count = magnetic_field.value_counts()
-    const_H_values = get_const_M_for_both(M_count)
+#     M_count = magnetic_field.value_counts()
+#     const_H_values = get_const_M_for_both(M_count)
     
-    MvsT_indices = get_measurement_MvsT(const_H_values)
-    separated_MvsT_indices = separate_MvsT_index_for_both(measurement_table, "Temperature (K)")# the indices where the separation is going to be done
-    separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
+#     MvsT_indices = get_measurement_MvsT(const_H_values)
+#     separated_MvsT_indices = separate_MvsT_index_for_both(measurement_table, "Temperature (K)")# the indices where the separation is going to be done
+#     separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
     
-    return separated_MvsT, MvsT_indices, const_H_values
+#     return separated_MvsT, MvsT_indices, const_H_values
 
 
 
@@ -803,7 +865,6 @@ def what_path_main(type_token, measurement_table):
         return separated_MvsH, MvsH_indices, const_T_values, separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
     
 what_path_main(type_token, measurement_table)
-
 
 
 

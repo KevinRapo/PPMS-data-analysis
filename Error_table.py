@@ -5,6 +5,7 @@ Created on Mon Jun 19 13:45:38 2023
 @author: kevin
 """
 
+import os
 import statistics as stat
 import re
 import pandas as pd
@@ -140,8 +141,9 @@ def round_H_to_even_round_number(val):
 max_range = round_H_to_even_round_number(val)
 print("Range:",max_range)
 
-pd_table.to_csv(f"C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables/PdCal_{max_range}_Oe.csv") #PC
-#pd_table.to_csv(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables/PdCal_{max_range}_Oe.DAT") "laptop
+pd_table.to_csv(os.path.join(os.getcwd(),f"PdCorrection tables\\PdCal_{max_range}_Oe.csv"))
+
+
 
 
 

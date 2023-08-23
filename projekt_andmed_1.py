@@ -13,22 +13,7 @@ from scipy.signal import argrelextrema
 USER_PATH = os.getcwd()
 
 
-print("Path at terminal when executing this file")
-print(os.getcwd() + "\n")
 
-print("This file path, relative to os.getcwd()")
-print(__file__ + "\n")
-
-print("This file full path (following symlinks)")
-full_path = os.path.realpath(__file__)
-print(full_path + "\n")
-
-print("This file directory and name")
-path, filename = os.path.split(full_path)
-print(path + ' --> ' + filename + "\n")
-
-print("This file directory only")
-print(os.path.dirname(full_path))
 
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
@@ -587,7 +572,7 @@ def plot_MvsT(separated_MvsT, MvsT_indices, const_H_values):
         ax.grid(True)
         #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsT_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop !!!
         
-        fig.savefig(os.path.join(save_to_path,'MvsT_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
+        fig.savefig(os.path.join(save_to_path,f'MvsT_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
         
     return None
 
@@ -626,7 +611,7 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
         ax.legend() #Hetkel loodab lihtsalt sellele, et algav tsükkel on kasvav, KÜSI ÜLE!
         ax.grid(True)
         #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
-        fig.savefig(os.path.join(save_to_path,'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
+        fig.savefig(os.path.join(save_to_path,f'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
         i += 1
         
     return None

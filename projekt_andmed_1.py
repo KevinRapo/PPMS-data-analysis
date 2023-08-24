@@ -509,10 +509,10 @@ def separation_index_for_series(data, column_name, n = 50): # https://stackoverf
     plt.legend()
     plt.show()
         
-    return min_indices, max_indices #!!!
+    return min_indices, max_indices
 
 
-def separate_MvsT_index_for_both(measurement_table, MvsT_indices):
+def separate_MvsT_index_for_both(measurement_table, MvsT_indices): #!!! saab vist kokku panna indekseerimise
     #Finds the index where to separate the measurement into multiple series,
     #each series being the temperature increase from lower to higher.
     #if the previous value is bigger than the current one, then it's considered the breaking point
@@ -530,103 +530,132 @@ def separate_MvsT_index_for_both(measurement_table, MvsT_indices):
     return transition_indices
 
 
-
 def separate_MvsT(separation_index, MvsT_indices):
     #Separates the points based on the index and returns the separated series in pairs
     separated_pair = []
-    global tabel
     
-    i = 0 #index for MvsT_indices elements
-    print("Separation_index len:",len(separation_index))
-    print("MvsT_indices len:",len(MvsT_indices))
+    #global tabel
     
-    length = len(MvsT_indices)
+    #print("Separation_index len:",len(separation_index))
+    #print("MvsT_indices len:",len(MvsT_indices),"\n")
     
     min_index_list = separation_index[0].tolist()
     max_index_list = separation_index[1].tolist()
-    
+
+    i = 0
+    j = 0
     
     for indices in MvsT_indices:
-        
-        j = 0
+
         tabel = measurement_table[["Temperature (K)","Moment (emu)"]].loc[indices]
-        
-        while max_index_list:
+    
+        for max_index in max_index_list:
             
-            for max_index in max_index_list:
+            #print("Mitmes separate_MvsT tsükkel: ",i, j)
+            
+            separated = []
+            
+            #print("max index list:", max_index_list, "max index:", max_index)
+
+            if max_index in indices:
+                #print("kukub vahemikku:",indices[0],"-", indices[-1],"index:",max_index, "j väärtus:", j)
                 
-                print("Mitmes separate_MvsT tsükkel: ",i)
-                separated = []
-                
-                #print("\n Max index:",max_index,"  min index:", min_index, "current:", index)
-                start = min_index_list[0]
-                stop = max_index_list[1]
-                
-                sliced1 = tabel.loc[min_index_list[0]:max_index]
+                sliced1 = tabel.loc[min_index_list[j]:max_index]
                 separated.append(sliced1)
-                
-                # sliced2 = tabel.loc[index+1:stop]
                 
                 if j == len(min_index_list) - 1:
                     sliced2 = tabel.loc[max_index+1:min_index_list[j]]
                     
                 else:
-                    sliced2 = tabel.loc[max_index+1:min_index_list[j+1]] #Siit edasi
+                    sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
+            else:
+                #print("\nMillal kukub välja?")
+                max_index_list = max_index_list[j:]
                 
-                separated.append(sliced2)
-                separated_pair.append(separated)
-                
-                min_index_list.pop(0)
-                max_index_list.pop(0)
-                j += 1
+                #print("max_index_list:", max_index_list)
+                break
             
+            separated.append(sliced2)
+            separated_pair.append(separated)
+            
+            j += 1
             
         i += 1
         
     return separated_pair#!!!
 
-# def separate_MvsT(separation_index, MvsT_indices): 
-#     #Separates the points based on the index and returns the separated series in pairs
-#     separated_pair = []
+def separate_MvsT_for_both(separation_index, MvsT_indices): 
+    #Separates the points based on the index and returns the separated series in pairs
+    separated_pair = []
     
-#     i = 0 #index for MvsT_indices elements
+    i = 0 #index for MvsT_indices elements
     
-#     for index in separation_index:
-#         print("Mitmes separate_MvsT tsükkel: ",i)
-#         separated = []
-#         min_index = min(MvsT_indices[i])
-#         max_index = max(MvsT_indices[i])
-#         sliced1 = measurement_table[["Temperature (K)","Moment (emu)"]].loc[min_index:index-1]
-#         separated.append(sliced1)
-#         sliced2 = measurement_table[["Temperature (K)","Moment (emu)"]].loc[index:max_index]
-#         separated.append(sliced2)
-#         i += 1
-#         separated_pair.append(separated)
+    for index in separation_index:
+        print("Mitmes separate_MvsT tsükkel: ",i)
+        separated = []
+        min_index = min(MvsT_indices[i])
+        max_index = max(MvsT_indices[i])
+        sliced1 = measurement_table[["Temperature (K)","Moment (emu)"]].loc[min_index:index-1]
+        separated.append(sliced1)
+        sliced2 = measurement_table[["Temperature (K)","Moment (emu)"]].loc[index:max_index]
+        separated.append(sliced2)
+        i += 1
+        separated_pair.append(separated)
         
-#     return separated_pair
+    return separated_pair
+
+def separated_into_dict_pair(separated_pairs, const_val, column):
+    # for interval:value pairs
+    raamat = {}
+
+    for const in const_val:
+        print("const:", const)
+        
+        for val in separated_pairs:
+            index_check = val[0].index[0]
+
+            if measurement_table[column].iloc[index_check] == const:
+                key = const
+                
+                if key not in raamat:
+                    raamat[key] = []  # Create an empty list for this key if it doesn't exist
+                    
+                raamat[key].append(val)  # Append the value to the list associated with the key
+
+    return raamat
+
 
 #-----------------------PLOTTING THE DATA---------------------------------------------------------
 
-def plot_MvsT(separated_MvsT, MvsT_indices, const_H_values):
+def plot_MvsT(raamat, MvsT_indices, const_H_values):
     #Plots the MvsT measurement pair with different colors
     
-    for i in range(len(MvsT_indices)):
-        fig, ax = plt.subplots()
-        T1 = separated_MvsT[i][0]["Temperature (K)"]
-        M1 = separated_MvsT[i][0]["Moment (emu)"]
-        T2 = separated_MvsT[i][1]["Temperature (K)"]
-        M2 = separated_MvsT[i][1]["Moment (emu)"]
-        
-        ax.plot(T1,M1,color = "green")
-        ax.plot(T2,M2,color = "red", marker = "o")
-        val = const_H_values[i]
-        ax.set_title(f"M vs T at {val} Oe") #hetkel
-        ax.set_xlabel("Temperature (K)")
-        ax.set_ylabel("Moment (emu)")
-        #ax.legend()
-        ax.grid(True)
-        
-        fig.savefig(os.path.join(save_to_path,f'MvsT_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200)
+    for key in raamat:
+        i = 0
+        for df in raamat[key]:
+            
+            fig, ax = plt.subplots()
+            T1 = df[0]["Temperature (K)"]
+            M1 = df[0]["Moment (emu)"]
+            T2 = df[1]["Temperature (K)"]
+            M2 = df[1]["Moment (emu)"]
+            
+            ax.plot(T1,M1,color = "green", label = "Ascending")
+            ax.plot(T2,M2,color = "red", label = "Descending")#, marker = "o")
+            
+            
+            if len(const_H_values) == 1:
+                val = const_H_values[0]
+            else:
+                val = const_H_values[i]
+            
+            ax.set_title(f"M vs T at {val} Oe") #hetkel
+            ax.set_xlabel("Temperature (K)")
+            ax.set_ylabel("Moment (emu)")
+            ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
+            ax.grid(True)
+            i += 1
+            fig.savefig(os.path.join(save_to_path,f'MvsT_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200)
         
     return None
 
@@ -662,7 +691,7 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
         ax.set_title(f"M vs H at {const_T_values[i]} K")
         ax.set_xlabel("Magnetic field (Oe)")
         ax.set_ylabel("Moment (emu)")
-        ax.legend() #Hetkel loodab lihtsalt sellele, et algav tsükkel on kasvav, KÜSI ÜLE!
+        ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
         ax.grid(True)
         #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
         fig.savefig(os.path.join(save_to_path,f'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
@@ -776,7 +805,7 @@ def MvsT_solo(measurement_table):
     separated_MvsT_indices = separation_index_for_series(measurement_table, "Temperature (K)")# the indices where the separation is going to be done
     separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
     
-    return separated_MvsT, MvsT_indices, const_H_values #!!!
+    return separated_MvsT, MvsT_indices, const_H_values
 
 # def MvsT_duo(measurement_table): #EI KASUTA HETKEL
     
@@ -807,17 +836,20 @@ def what_path_main(type_token, measurement_table):
         
         print("\n Kas jõudis MvsH lõppu?")
         
-        return separated_MvsH, MvsH_indices, const_T_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
+        return separated_MvsH, MvsH_indices, const_T_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA
     
     elif type_token["Temperature"] == "continous" and type_token["Field"] == "discrete":
         
-        separated_MvsT, MvsT_indices, const_H_values = MvsT_solo(measurement_table)
+        global raamat
         
-        plot_MvsT(separated_MvsT, MvsT_indices, const_H_values)
+        separated_MvsT, MvsT_indices, const_H_values = MvsT_solo(measurement_table)
+        raamat = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
+        
+        plot_MvsT(raamat, MvsT_indices, const_H_values)
         
         print("\n Kas jõudis MvsT lõppu?")
         
-        return separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
+        return separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA
                 
     
     elif type_token["Temperature"] == "continous" and type_token["Field"] == "continous":
@@ -845,7 +877,8 @@ def what_path_main(type_token, measurement_table):
         
         #Separating MvsT measurements
         separated_MvsT_indices = separate_MvsT_index_for_both(measurement_table, MvsT_indices)# the indices where the separation is going to be done
-        separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
+        separated_MvsT = separate_MvsT_for_both(separated_MvsT_indices, MvsT_indices)
+        #raamat = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
         
         #Separating MvsH measurements
         separated_MvsH_indices = separate_MvsH_index(measurement_table, MvsH_indices) #the indices where the separation is going to be done

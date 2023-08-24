@@ -640,8 +640,8 @@ def plot_MvsT(raamat, MvsT_indices, const_H_values):
             T2 = df[1]["Temperature (K)"]
             M2 = df[1]["Moment (emu)"]
             
-            ax.plot(T1,M1,color = "green", label = "Ascending")
-            ax.plot(T2,M2,color = "red", label = "Descending")#, marker = "o")
+            ax.plot(T1,M1,color = "green", label = "Ascending") 
+            ax.plot(T2,M2,color = "red", label = "Descending")#, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
             
             
             if len(const_H_values) == 1:
@@ -678,7 +678,7 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
             
             if len(H3) != len(M1) or len(H4) != len(M2):
                 #Siin ongi see, et ei ole interpoleeritud punkte, siis x/y erineva pikkusega ja ei saa joonistada
-                print(f"Warning: Length mismatch between True Field and Moment data for {const_T_values[i]} K.") #!!! error selles,et pole correction tabelit iga välja tugevuse jaoks
+                print(f"Warning: Length mismatch between True Field and Moment data for {const_T_values[i]} K.") #error selles,et pole correction tabelit iga välja tugevuse jaoks
                 continue  # Continue to the next iteration
                 
             ax.plot(H3, M1, color = "red", label = "True Field")
@@ -773,6 +773,7 @@ def MvsH_solo(measurement_table):
     unfiltered_MvsH_T_values, unfiltered_MvsH_indices = get_measurement_MvsH(const_T_values)
     MvsH_indices = filter_measurement_MvsH(unfiltered_MvsH_indices)
     
+    #!!! vb siia ka separation_index_for_series panna
     separated_MvsH_indices = separate_MvsH_index(measurement_table, MvsH_indices) #the indices where the separation is going to be done
     separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
     
@@ -878,7 +879,7 @@ def what_path_main(type_token, measurement_table):
         #Separating MvsT measurements
         separated_MvsT_indices = separate_MvsT_index_for_both(measurement_table, MvsT_indices)# the indices where the separation is going to be done
         separated_MvsT = separate_MvsT_for_both(separated_MvsT_indices, MvsT_indices)
-        #raamat = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
+        raamat = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
         
         #Separating MvsH measurements
         separated_MvsH_indices = separate_MvsH_index(measurement_table, MvsH_indices) #the indices where the separation is going to be done
@@ -891,7 +892,7 @@ def what_path_main(type_token, measurement_table):
         
         #Plots
         plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH)
-        plot_MvsT(separated_MvsT, MvsT_indices, const_H_values)
+        plot_MvsT(raamat, MvsT_indices, const_H_values)
         
         print("\n Kas jõudis duo lõppu?")
         

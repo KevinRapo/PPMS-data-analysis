@@ -13,8 +13,6 @@ from scipy.signal import argrelextrema
 USER_PATH = os.getcwd()
 
 
-
-
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 root = tk.Tk()
@@ -204,7 +202,7 @@ def min_max_range(data):
     #divides the temperature range into intervals for temperature distribution in the data
     start = min(data)
     stop = max(data)+0.5
-    step = 0.2
+    step = 0.15 #0.2 oli error selle failiga DataToTest/7_TbMn0p2Ga3_VSM_DC_Hys_300K_50K_30K_2K_01112022
     values = []
     current_value = start
     
@@ -223,21 +221,20 @@ def mood_temp_for_both(intervals):
     print("Mean temp:", mean)
     for index, value in intervals.items():
         if value > 20*mean: # MINGI ILUSAM TINGIMUS!!
-            print(value)
             const_temp.append(index)
             
     return const_temp
 
 def mood_temp_for_MvsH(intervals):
     #determines at which temperatures the MvsH measurement was made
-    #outputs the interval which satisfies 20*mean
+    #outputs the interval which satisfies mean
     mean = stat.mean(intervals)
     const_temp = []
     print("Mean temp:", mean)
     for index, value in intervals.items():
         if value > mean: # MINGI ILUSAM TINGIMUS!!
             const_temp.append(index)
-            print("Kas appendib?:", index)
+            print("Millised temp vahemikud:", index)
             
     return const_temp
 
@@ -247,9 +244,18 @@ def get_const_temp(const):
     const_temp = []
     x = 0
     for val in const:
-        const_temp.append(int(val.right))
-        print(const_temp[x],"K mõõdetud väljasõltuvust")
-        x +=1
+        print(val)
+        
+        if int(val.left) == int(val.right): # if the temp is low the interval might shift too much to group accurately so instead we round the left value to its first digit
+            print(val)
+            rounded = round(val.left , 1)
+            const_temp.append(rounded)
+            print(const_temp[x],"K mõõdetud väljasõltuvust")
+            x += 1
+        else:
+            const_temp.append(int(val.right))
+            print(const_temp[x],"K mõõdetud väljasõltuvust")
+            x += 1
         
     return const_temp
 
@@ -277,13 +283,16 @@ def get_measurement_MvsH(const_T_values):
 def filter_measurement_MvsH(unfiltered_MvsH_indices):
     #Filters the points based on the difference between the indices,
     #if it's 1 then the points are considered of interest.
+    global table
     filtered_table = []
-    
+    j = 0
     for table in unfiltered_MvsH_indices:
-        filtered = [table[i] for i in range(len(table)-1) if table[i+1] - table[i] == 1]
+        filtered = [table[i] for i in range(len(table)-1) if table[i+1] - table[i] == 1] #!!! see tingimus siin ei tundu väga kindel
+        print(j)
         if table[-1] - table[-2] == 1: #Extra condition for the last element
             filtered.append(table[-1])
         filtered_table.append(filtered)
+        j += 1
         
     return filtered_table
 
@@ -418,10 +427,10 @@ def interpolate_MvsH(separated_MvsH, error_tables):
 def get_const_M_for_both(count):
     #outputs the float values for the constant magnetic fields for MvsT
     mean = stat.mean(count)
-    print("Mean H:", mean)
+    print("\nMean H:", mean)
     const_H = []
     for index, value in count.items():
-        if value > mean: 
+        if value > 2*mean: # muutsin nivood, kui hiljeb peaks probleeme tekkima 28.08
             const_H.append(index)
             print(f"{index} tulbas viitab const H")
             
@@ -521,12 +530,15 @@ def separate_MvsT_index_for_both(measurement_table, MvsT_indices): #!!! saab vis
     for indices_range in MvsT_indices:
         series = measurement_table["Temperature (K)"].loc[indices_range]
         previous_index = indices_range[0]  # Initialize with the starting index
-        
+        #print(series)
         for index in indices_range:
             if series.loc[index] < series.loc[previous_index]: #loc for index value based indexing, not iloc for label
                 transition_indices.append(index)
             previous_index = index
             
+    # if len(transition_indices) == 0: # the case where there was only one up/down cycle measured at that H value
+    #     return MvsT_indices
+    
     return transition_indices
 
 
@@ -582,13 +594,20 @@ def separate_MvsT(separation_index, MvsT_indices):
             
         i += 1
         
-    return separated_pair#!!!
+    return separated_pair
 
 def separate_MvsT_for_both(separation_index, MvsT_indices): 
     #Separates the points based on the index and returns the separated series in pairs
     separated_pair = []
     
     i = 0 #index for MvsT_indices elements
+    print("pikkus indeksitel:",len(separation_index))
+    
+    if len(separation_index) == 0: # the case where there was only only up cycle measured at that H
+        for indices in MvsT_indices:
+            whole = [measurement_table[["Temperature (K)","Moment (emu)"]].loc[indices]]
+            separated_pair.append(whole)
+        return separated_pair
     
     for index in separation_index:
         print("Mitmes separate_MvsT tsükkel: ",i)
@@ -601,15 +620,14 @@ def separate_MvsT_for_both(separation_index, MvsT_indices):
         separated.append(sliced2)
         i += 1
         separated_pair.append(separated)
-        
+    
     return separated_pair
 
 def separated_into_dict_pair(separated_pairs, const_val, column):
     # for interval:value pairs
     raamat = {}
-
+    
     for const in const_val:
-        print("const:", const)
         
         for val in separated_pairs:
             index_check = val[0].index[0]
@@ -629,41 +647,44 @@ def separated_into_dict_pair(separated_pairs, const_val, column):
 
 def plot_MvsT(raamat, MvsT_indices, const_H_values):
     #Plots the MvsT measurement pair with different colors
-    
+
     for key in raamat:
         i = 0
         for df in raamat[key]:
-            
+
             fig, ax = plt.subplots()
             T1 = df[0]["Temperature (K)"]
             M1 = df[0]["Moment (emu)"]
-            T2 = df[1]["Temperature (K)"]
-            M2 = df[1]["Moment (emu)"]
-            
-            ax.plot(T1,M1,color = "green", label = "Ascending") 
-            ax.plot(T2,M2,color = "red", label = "Descending")#, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
+            T2 = df[1]["Temperature (K)"] if len(df) > 1 else None
+            M2 = df[1]["Moment (emu)"] if len(df) > 1 else None
             
             
-            if len(const_H_values) == 1:
-                val = const_H_values[0]
-            else:
-                val = const_H_values[i]
+            ax.plot(T1,M1,color = "green", label = "Ascending")
+            ax.plot(T2,M2,color = "red", label = "Descending") if len(df) > 1 else None #, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
             
-            ax.set_title(f"M vs T at {val} Oe") #hetkel
+            
+            # if len(const_H_values) == 1: #if only 1 field value, expects more
+            #     val = const_H_values[0]
+            # else:
+            #     val = const_H_values[i]
+            
+            
+            ax.set_title(f"M vs T at {key} Oe") #hetkel
             ax.set_xlabel("Temperature (K)")
             ax.set_ylabel("Moment (emu)")
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
             ax.grid(True)
             i += 1
-            fig.savefig(os.path.join(save_to_path,f'MvsT_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200)
+            fig.savefig(os.path.join(save_to_path,f'MvsT_graph_at_{key}K.png'),bbox_inches = "tight", dpi = 200)
         
     return None
 
 
 def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
     #Plots the MvsH measurement pair with different colors
+    #global H1, M1, H2, M2
     i = 0
-    
+    j = 0
     for i in range(len(separated_MvsH)):
         fig, ax = plt.subplots()
         H1 = separated_MvsH[i][0]["Magnetic Field (Oe)"]
@@ -672,23 +693,28 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
         M2 = separated_MvsH[i][1]["Moment (emu)"] 
         
         for key in interpolated_MvsH:
+            print(j)
             # See on interpoleerimise jaoks
-            H3 = interpolated_MvsH[key][0]["True Field (Oe)"]
-            H4 = interpolated_MvsH[key][1]["True Field (Oe)"]
+            H3 = interpolated_MvsH[key][j]["True Field (Oe)"]
+            H4 = interpolated_MvsH[key][j+1]["True Field (Oe)"]
             
             if len(H3) != len(M1) or len(H4) != len(M2):
                 #Siin ongi see, et ei ole interpoleeritud punkte, siis x/y erineva pikkusega ja ei saa joonistada
                 print(f"Warning: Length mismatch between True Field and Moment data for {const_T_values[i]} K.") #error selles,et pole correction tabelit iga välja tugevuse jaoks
                 continue  # Continue to the next iteration
                 
+            j += 2
             ax.plot(H3, M1, color = "red", label = "True Field")
             ax.plot(H4, M2, color = "red")
             ax.legend()
-
+            
+        print("käib ju iga tsükkel siin?")
         ax.plot(H1,M1,color = "blue", label = "Ascending")
         ax.plot(H2,M2,color = "orange", label = "Descending")
-        val = const_T_values[i]
-        ax.set_title(f"M vs H at {const_T_values[i]} K")
+        
+        val = int(const_T_values[i]) #!!! siin peaks ka probleem tekkima, kui mitu möötmist samal tempil
+
+        ax.set_title(f"M vs H at {val} K")
         ax.set_xlabel("Magnetic field (Oe)")
         ax.set_ylabel("Moment (emu)")
         ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
@@ -731,7 +757,7 @@ def data_check(measurement_table):
             type_token["Field"] = "discrete"
             print("T discrete, H discrete = error \n")
             
-            return None
+            return type_token
         
         else: #continous
         
@@ -763,10 +789,13 @@ type_token = data_check(measurement_table)
 
 def MvsH_solo(measurement_table):
     
+    global ranges_temp, intervals_temp, const_T_interval, const_T_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
+        MvsH_indices, separated_MvsH_indices, separated_MvsH
+        
     ranges_temp = min_max_range(temperature)
-    intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
-    
-    const_T_interval = mood_temp_for_MvsH(intervals)
+    intervals_temp = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
+    #print(intervals)
+    const_T_interval = mood_temp_for_MvsH(intervals_temp)
     const_T_values = get_const_temp(const_T_interval)
     
     #SIIN VAATA filtered_values üle, äkki saad hiljem kasutada
@@ -822,7 +851,9 @@ def MvsT_solo(measurement_table):
 
 
 def what_path_main(type_token, measurement_table):
-    
+    global ranges_temp, intervals_temp, const_T_interval, const_T_values, M_count, const_H_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
+        MvsH_indices, MvsT_indices, separated_MvsT_indices, separated_MvsT, separated_MvsH_indices, separated_MvsH, min_max_MvsH_val, error_tables,\
+        interpolated_MvsH
     if type_token["Temperature"] == "discrete" and type_token["Field"] == "continous":
         
         # global interpolated_MvsH, separated_MvsH, MvsH_indices, const_T_values
@@ -841,7 +872,6 @@ def what_path_main(type_token, measurement_table):
     
     elif type_token["Temperature"] == "continous" and type_token["Field"] == "discrete":
         
-        global raamat
         
         separated_MvsT, MvsT_indices, const_H_values = MvsT_solo(measurement_table)
         raamat = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
@@ -853,16 +883,12 @@ def what_path_main(type_token, measurement_table):
         return separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA
                 
     
-    elif type_token["Temperature"] == "continous" and type_token["Field"] == "continous":
-        
-        # global ranges_temp, intervals, const_T_interval, const_T_values, M_count, const_H_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
-        #     MvsH_indices, MvsT_indices, separated_MvsT_indices, separated_MvsT, separated_MvsH_indices, separated_MvsH, min_max_MvsH_val, error_tables,\
-        #     interpolated_MvsH
-        
+    elif type_token["Temperature"] == "continous" and type_token["Field"] == "continous":#!!!
+
         #This part finds the constant temperatures from the data (MvsH)
         ranges_temp = min_max_range(temperature)
-        intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
-        const_T_interval = mood_temp_for_both(intervals)
+        intervals_temp = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
+        const_T_interval = mood_temp_for_both(intervals_temp)
         const_T_values = get_const_temp(const_T_interval)
         
         #This part finds the constant magnetic field from the data (MvsT)
@@ -895,12 +921,19 @@ def what_path_main(type_token, measurement_table):
         plot_MvsT(raamat, MvsT_indices, const_H_values)
         
         print("\n Kas jõudis duo lõppu?")
-        
+
         return separated_MvsH, MvsH_indices, const_T_values, separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
     
 what_path_main(type_token, measurement_table)
 
+#!!! PS
 
+""" -----------------MIDA VAJA PARANDADA VEEL------------
+
+1. plottimise juures selgus, et nan väärtused võivad olla, need asendada
+2.
+
+"""
 
 #-----------------------DIVIDING MEASUREMENTS BY SAMPLE SIZE--------------------------------------
 

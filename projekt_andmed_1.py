@@ -728,7 +728,7 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
 
 #-------------Determining the measurement type from the data (MvsH/MvsT or both)-----------------
 
-RATIO_LEVEL = 0.05
+RATIO_LEVEL = 0.07
 
 def data_check(measurement_table):
     #Checks what measurements the file contains
@@ -745,9 +745,11 @@ def data_check(measurement_table):
     codes_T, uniques_T = pd.factorize(smoothed_dataset_T)
     codes_H, uniques_H = pd.factorize(smoothed_dataset_H)
     
+    print(uniques_T)
     
     ratio_T = uniques_T.size/smoothed_dataset_T.size
     ratio_H = uniques_H.size/smoothed_dataset_H.size
+    print(ratio_H,ratio_T)
     
     if ratio_T < RATIO_LEVEL: #discrete
     
@@ -855,13 +857,14 @@ def what_path_main(type_token, measurement_table):
         MvsH_indices, MvsT_indices, separated_MvsT_indices, separated_MvsT, separated_MvsH_indices, separated_MvsH, min_max_MvsH_val, error_tables,\
         interpolated_MvsH
     if type_token["Temperature"] == "discrete" and type_token["Field"] == "continous":
-        
+        print("\n Kas jõudis MvsH algusesse?")
         # global interpolated_MvsH, separated_MvsH, MvsH_indices, const_T_values
         
         separated_MvsH, MvsH_indices, const_T_values = MvsH_solo(measurement_table)
         
         min_max_MvsH_val = round_H(MvsH_indices) #Magnetic field value indicating the +- field value
         error_tables = nr_to_dict(min_max_MvsH_val)
+        print("\n Kas jõudis MvsH keskele?")
         interpolated_MvsH = interpolate_MvsH(separated_MvsH, error_tables)
         
         plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH)

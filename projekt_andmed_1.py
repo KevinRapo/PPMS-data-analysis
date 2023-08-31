@@ -713,7 +713,7 @@ def plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH):
         #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
         fig.savefig(os.path.join(save_to_path,f'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
         i += 1
-        
+    
     return None
 
 
@@ -917,6 +917,11 @@ def what_path_main(type_token, MEASUREMENT_TABLE):
         return separated_MvsH, MvsH_indices, const_T_values, separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
     
 what_path_main(type_token, MEASUREMENT_TABLE)
+
+#Parameetrite test
+
+#Dataframe.to_excel(os.path.join(save_to_path,"parameterTest.xlsx"), index = False) sellega saab exceli faili näiteks teha parameetrite jaoks
+
 
 #!!! PS
 

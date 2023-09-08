@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import tkinter as tk
+import matplotlib.colors as mcolors
 from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
@@ -640,9 +641,17 @@ def separated_into_dict_pair(separated_pairs, const_val, column):
 
 #-----------------------PLOTTING THE DATA---------------------------------------------------------
 
-def plot_MvsT_solo(raamat, MvsT_indices, const_H_values):
-    #Plots the MvsT measurement pair with different colors
+COLORS = list(mcolors.BASE_COLORS.keys())
+MEASUREMENT_TABLE["color"] = "black"
 
+def plot_MvsT_solo(raamat, const_H_values, MvsT_indices):
+    #Plots the MvsT measurement pair with different colors
+    
+    for index in MvsT_indices:
+        
+        MEASUREMENT_TABLE.loc[index, "color"] = COLORS[0]
+        COLORS.pop(0)
+    
     for key in raamat:
         i = 0
         for df in raamat[key]:
@@ -653,18 +662,9 @@ def plot_MvsT_solo(raamat, MvsT_indices, const_H_values):
             T2 = df[1]["Temperature (K)"] if len(df) > 1 else None
             M2 = df[1]["Moment (emu)"] if len(df) > 1 else None
             
-            
             ax.plot(T1,M1,color = "green", label = "Ascending")
             ax.plot(T2,M2,color = "red", label = "Descending") if len(df) > 1 else None #, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
-            
-            
-            # if len(const_H_values) == 1: #if only 1 field value, expects more
-            #     val = const_H_values[0]
-            # else:
-            #     val = const_H_values[i]
-            
-            
-            ax.set_title(f"M vs T at {key} Oe") #hetkel
+            ax.set_title(f"M vs T at {key} Oe")
             ax.set_xlabel("Temperature (K)")
             ax.set_ylabel("Moment (emu)")
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
@@ -674,44 +674,17 @@ def plot_MvsT_solo(raamat, MvsT_indices, const_H_values):
         
     return None
 
-def plot_MvsT_timeseries(indices): #!!!
-    global MEASUREMENT_TABLE
-    
-    colors = ["red", "green", "blue", "orange", "yellow"]
-    color_idx = 0
-    fig, (ax1, ax2, ax3) = plt.subplots(3)
-    MEASUREMENT_TABLE = MEASUREMENT_TABLE.copy()
-    MEASUREMENT_TABLE["color"] = " "
-    
-    for index in indices:
-        
-        MEASUREMENT_TABLE.loc[index, "color"] = colors[color_idx]
-        
-        field = MEASUREMENT_TABLE["Magnetic Field (Oe)"].loc[index]
-        temp = MEASUREMENT_TABLE["Temperature (K)"].loc[index]
-        moment = MEASUREMENT_TABLE["Moment (emu)"].loc[index]
-        timestamp = MEASUREMENT_TABLE["Time Stamp (sec)"].loc[index]
-        
-        ax1.grid(True)
-        ax2.grid(True)
-        
-        ax1.plot(timestamp,temp, color = colors[color_idx])
-        ax2.plot(timestamp, moment, color = colors[color_idx])
-        ax3.plot(timestamp, field, color = colors[color_idx])
-        ax1.set_ylabel("Temperature (K)")
-        ax2.set_ylabel("Moment (emu)")
-        ax3.set_ylabel("Magnetic Field (emu)")
-        ax2.set_xlabel("Timestamp")
-        #fig.suptitle("Ajarida")
-        color_idx += 1
-    
-    return None
-
-def plot_MvsH_solo(separated_MvsH, const_T_values, interpolated_MvsH):
+def plot_MvsH_solo(separated_MvsH, const_T_values, interpolated_MvsH, MvsH_indices):
     #Plots the MvsH measurement pair with different colors
-    #global H1, M1, H2, M2
+    global plot_title
     i = 0
     j = 0
+    
+    for index in MvsH_indices:
+        
+        MEASUREMENT_TABLE.loc[index, "color"] = COLORS[0]
+        COLORS.pop(0)
+    
     for i in range(len(separated_MvsH)):
         fig, ax = plt.subplots()
         H1 = separated_MvsH[i][0]["Magnetic Field (Oe)"]
@@ -739,8 +712,9 @@ def plot_MvsH_solo(separated_MvsH, const_T_values, interpolated_MvsH):
         ax.plot(H2,M2,color = "orange", label = "Descending")
         
         val = int(const_T_values[i]) #!!! siin peaks ka probleem tekkima, kui mitu möötmist samal tempil
-
-        ax.set_title(f"M vs H at {val} K")
+        
+        plot_title = f"M vs H at {val} K"
+        ax.set_title(plot_title)
         ax.set_xlabel("Magnetic field (Oe)")
         ax.set_ylabel("Moment (emu)")
         ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
@@ -750,6 +724,31 @@ def plot_MvsH_solo(separated_MvsH, const_T_values, interpolated_MvsH):
         i += 1
         
     return None
+
+
+def plot_timeseries():
+
+    # Create subplots with shared x-axis
+    fig, axes = plt.subplots(nrows=3, sharex=True)
+    
+    # Plot data on each subplot
+    time_axis = "Time Stamp (sec)"
+    MEASUREMENT_TABLE.plot(x=time_axis, y="Temperature (K)", kind="scatter", c=MEASUREMENT_TABLE["color"].values, ax=axes[0])
+    MEASUREMENT_TABLE.plot(x=time_axis, y="Moment (emu)", kind="scatter", c=MEASUREMENT_TABLE["color"].values, ax=axes[1])
+    MEASUREMENT_TABLE.plot(x=time_axis, y="Magnetic Field (Oe)", kind="scatter", c=MEASUREMENT_TABLE["color"].values, ax=axes[2])
+    
+    # Customize axes labels and other properties
+    
+    axes[0].set_ylabel("Temperature (K)")
+    axes[1].set_ylabel("Moment (emu)")
+    axes[2].set_ylabel("Magnetic Field (Oe)")
+    axes[-1].set_xlabel("Time Stamp (sec)")
+    
+    # Show the plot
+    plt.show()
+    
+    return None
+
 
 
 #-------------Determining the measurement type from the data (MvsH/MvsT or both)-----------------
@@ -850,7 +849,7 @@ def what_path_main(measurement_type_token):
     
     global ranges_temp, intervals_temp, const_T_interval, const_T_values, H_count, const_H_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
         MvsH_indices, MvsT_indices, separated_MvsT_indices, separated_MvsT, separated_MvsH_indices, separated_MvsH, min_max_MvsH_val, error_tables,\
-        interpolated_MvsH
+        interpolated_MvsH, raamat
         
     if measurement_type_token["Temperature"] == "discrete" and measurement_type_token["Field"] == "continous":
         
@@ -860,7 +859,7 @@ def what_path_main(measurement_type_token):
         error_tables = nr_to_dict(min_max_MvsH_val)
         interpolated_MvsH = interpolate_MvsH(separated_MvsH, error_tables)
         
-        plot_MvsH_solo(separated_MvsH, const_T_values, interpolated_MvsH)
+        plot_MvsH_solo(separated_MvsH, const_T_values, interpolated_MvsH, MvsH_indices)
         
         print("\n Kas jõudis MvsH lõppu?")
         
@@ -871,7 +870,7 @@ def what_path_main(measurement_type_token):
         separated_MvsT, MvsT_indices, const_H_values = MvsT()
         raamat = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
         
-        plot_MvsT_solo(raamat, MvsT_indices, const_H_values)
+        plot_MvsT_solo(raamat, const_H_values, MvsT_indices)
         
         print("\n Kas jõudis MvsT lõppu?")
         
@@ -912,8 +911,8 @@ def what_path_main(measurement_type_token):
         interpolated_MvsH = interpolate_MvsH(separated_MvsH, error_tables)
         
         #Plots
-        plot_MvsH_solo(separated_MvsH, const_T_values, interpolated_MvsH)
-        plot_MvsT_solo(raamat, MvsT_indices, const_H_values)
+        plot_MvsH_solo(separated_MvsH, const_T_values, interpolated_MvsH, MvsH_indices)
+        plot_MvsT_solo(raamat, const_H_values, MvsT_indices)
         
         print("\n Kas jõudis duo lõppu?")
 
@@ -921,13 +920,47 @@ def what_path_main(measurement_type_token):
     
 what_path_main(measurement_type_token)
 
-plot_MvsT_timeseries(MvsT_indices)
+plot_timeseries()
+
+import os
+
+def plot_to_csv(indices, columns, folder_path, dType):
+    count = 0
+    for index in indices:
+        print(count)
+        # Select the desired rows and columns
+        selected_data = MEASUREMENT_TABLE.loc[index][columns]
+        
+        # Define a unique file name based on the index
+        file_name = f'{dType}_data_{count}.csv'
+        
+        # Create the full path to the CSV file
+        file_path = os.path.join(folder_path, file_name)
+        
+        # Save the selected data to the CSV file
+        selected_data.to_csv(file_path, index=False)
+        count += 1
+    
+    return None
+
+columns_to_save_MvsH = ["Magnetic Field (Oe)", "Moment (emu)"]
+columns_to_save_MvsT = ["Temperature (K)", "Moment (emu)"]
+
+folder_path = 'C:/Users/kevin/OneDrive/Desktop/Andmetöötlus'  # Replace with your folder path
+
+plot_to_csv(MvsH_indices, columns_to_save_MvsH, folder_path, "MvsH")
+plot_to_csv(MvsT_indices, columns_to_save_MvsT, folder_path, "MvsT")
+
 
 """ -----------------MIDA VAJA PARANDADA VEEL------------
 
 1. 
 
 """
+
+#Parameetrite test
+
+#Dataframe.to_excel(os.path.join(save_to_path,"parameterTest.xlsx"), index = False) sellega saab exceli faili näiteks teha parameetrite jaoks
 
 #-----------------------DIVIDING MEASUREMENTS BY SAMPLE SIZE--------------------------------------
 

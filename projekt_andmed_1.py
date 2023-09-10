@@ -494,7 +494,8 @@ def separation_index_for_clean_series(data, column_name, n = 50): # https://stac
     - DataFrame with 'min' and 'max' columns indicating local minima and maxima.
     """
     global max_indices, min_indices, local_peaks, katse
-    katse = data
+    #katse = data
+    
     if isinstance(data, pd.Series):
         # Convert a Series to a DataFrame with a specified column name
         data = pd.DataFrame({column_name: data})
@@ -515,8 +516,8 @@ def separation_index_for_clean_series(data, column_name, n = 50): # https://stac
     local_peaks['min'] = np.nan
     local_peaks['max'] = np.nan
     
-    print("min:", min_indices)
-    print("max:", max_indices)
+    # print("min:", min_indices)
+    # print("max:", max_indices)
     
     # Fill in the 'min' and 'max' columns with peak values 
     local_peaks.loc[min_indices, 'min'] = data.loc[min_indices, column_name]
@@ -529,7 +530,7 @@ def separation_index_for_clean_series(data, column_name, n = 50): # https://stac
     max_indices = local_peaks["max"].index[mask["max"]]
     min_indices = local_peaks["min"].index[mask["min"]]
     
-    # Plot results
+    # Plot results, tegelikult pole vaja, aga hea kontrollida kas tegi õigesti
     plt.scatter(data.index, local_peaks['min'], c='r', label='Minima')
     plt.scatter(data.index, local_peaks['max'], c='g', label='Maxima')
     plt.plot(data.index, data[column_name], label=column_name)

@@ -551,52 +551,95 @@ def separation_index_for_mixed_series(indices, column_name):
         separation_index = separation_index_for_clean_series(filtered, column_name)
         
         tester.append(separation_index)
-        print("check")
+        print("check mixed")
         
     return tester
     
-
 def separate_MvsT(separation_index, MvsT_indices):
     #Separates the points based on the index and returns the separated series in pairs
     separated_pair = []
     
-    min_index_list = separation_index[0].tolist() #Siit jätka, probleem et enne üli üks tuple nüüd list kus min/max indeksid
-    max_index_list = separation_index[1].tolist()
-
-    i = 0
-    j = 0
+    for index in separation_index:
+        
+        min_index_list = index[0].tolist() #Siit jätka, probleem et enne üli üks tuple nüüd list kus min/max indeksid
+        max_index_list = index[1].tolist()
     
-    for indices in MvsT_indices:
-
-        tabel = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices]
+        i = 0
+        j = 0
+        
+        for indices in MvsT_indices:
     
-        for max_index in max_index_list:
-            
-            separated = []
-
-            if max_index in indices:
+            tabel = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices]
+        
+            for max_index in max_index_list:
                 
-                sliced1 = tabel.loc[min_index_list[j]:max_index]
-                separated.append(sliced1)
-                
-                if j == len(min_index_list) - 1:
-                    sliced2 = tabel.loc[max_index+1:min_index_list[j]]
+                separated = []
+    
+                if max_index in indices:
                     
+                    sliced1 = tabel.loc[min_index_list[j]:max_index]
+                    separated.append(sliced1)
+                    
+                    if j == len(min_index_list) - 1:
+                        sliced2 = tabel.loc[max_index+1:min_index_list[j]]
+                        
+                    else:
+                        sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
                 else:
-                    sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
-            else:
-                max_index_list = max_index_list[j:]
+                    max_index_list = max_index_list[j:]
+                    
+                    break
                 
-                break
-            
-            separated.append(sliced2)
-            separated_pair.append(separated)
-            
-            j += 1
-            
-        i += 1
+                separated.append(sliced2)
+                separated_pair.append(separated)
+                
+                j += 1
+                
+            i += 1
         
     return separated_pair
+
+# def separate_MvsT(separation_index, MvsT_indices):
+#     #Separates the points based on the index and returns the separated series in pairs
+#     separated_pair = []
+    
+#     min_index_list = separation_index[0].tolist() #Siit jätka, probleem et enne üli üks tuple nüüd list kus min/max indeksid
+#     max_index_list = separation_index[1].tolist()
+
+#     i = 0
+#     j = 0
+    
+#     for indices in MvsT_indices:
+
+#         tabel = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices]
+    
+#         for max_index in max_index_list:
+            
+#             separated = []
+
+#             if max_index in indices:
+                
+#                 sliced1 = tabel.loc[min_index_list[j]:max_index]
+#                 separated.append(sliced1)
+                
+#                 if j == len(min_index_list) - 1:
+#                     sliced2 = tabel.loc[max_index+1:min_index_list[j]]
+                    
+#                 else:
+#                     sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
+#             else:
+#                 max_index_list = max_index_list[j:]
+                
+#                 break
+            
+#             separated.append(sliced2)
+#             separated_pair.append(separated)
+            
+#             j += 1
+            
+#         i += 1
+        
+#     return separated_pair
 
 
 def separate_MvsT_index_for_both(MvsT_indices): #!!! saab vist kokku panna indekseerimise
@@ -881,7 +924,7 @@ def what_path_main(measurement_type_token):
     
     global ranges_temp, intervals_temp, const_T_interval, const_T_values, H_count, const_H_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
         MvsH_indices, MvsT_indices, separated_MvsT_indices, separated_MvsT, separated_MvsH_indices, separated_MvsH, min_max_MvsH_val, error_tables,\
-        interpolated_MvsH, dict_MvsT, dict_MvsH
+        interpolated_MvsH, dict_MvsT, dict_MvsH, testUnfiltered
         
     if measurement_type_token["Temperature"] == "discrete" and measurement_type_token["Field"] == "continous":
         
@@ -935,6 +978,9 @@ def what_path_main(measurement_type_token):
         separated_MvsT_indices = separate_MvsT_index_for_both(MvsT_indices)# the indices where the separation is going to be done
         separated_MvsT = separate_MvsT_for_both(separated_MvsT_indices, MvsT_indices)
         
+        testUnfiltered = separation_index_for_mixed_series(MvsT_indices, "Temperature (K)")# the indices where the separation is going to be done
+        #testFiltered = None
+        separated_MvsT = separate_MvsT(testUnfiltered, MvsT_indices)
         dict_MvsT = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
         
         #Separating MvsH measurements
@@ -958,7 +1004,6 @@ def what_path_main(measurement_type_token):
 what_path_main(measurement_type_token)
 plot_timeseries()
 
-tester = separation_index_for_mixed_series(MvsT_indices, "Temperature (K)")
 
 
 
@@ -984,8 +1029,8 @@ def plot_to_csv(indices, columns, folder_path, dType):
 columns_to_save_MvsH = ["Magnetic Field (Oe)", "Moment (emu)"]
 columns_to_save_MvsT = ["Temperature (K)", "Moment (emu)"]
 
-#folder_path = 'C:/Users/kevin/OneDrive/Desktop/Andmetöötlus'  # laptop
-folder_path = "C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1" #PC
+folder_path = 'C:/Users/kevin/OneDrive/Desktop/Andmetöötlus'  # laptop
+#folder_path = "C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1" #PC
 
 if "MvsH_indices" not in globals():
     plot_to_csv(MvsT_indices, columns_to_save_MvsT, folder_path, "MvsT")

@@ -308,7 +308,8 @@ def separate_MvsH_index(MvsH_indices):
     transition_indices = []
     for indices_range in MvsH_indices:
         series = MEASUREMENT_TABLE["Magnetic Field (Oe)"].loc[indices_range]
-        transition_indices.append(series.idxmin())
+        transition_indices.append(series.idxmin()) # SIIN FILTREERIB SELLE PÕHJAL ET ALGAB ALATI POSITIIVSEST VÄLJAST
+                                                   # JA AINULT ÜKS MÕÕTMINE ÜHEL TEMPERATUURIL, SIIN ASENDA SEPARATION_INDEX..
     return transition_indices
 
 def separate_MvsH(separation_index, MvsH_indices):
@@ -366,8 +367,7 @@ def search_file(folder_path, number):
     return None
 
 folder_path = os.path.join(USER_PATH,'PdCorrection tables')
-#folder_path = 'C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables' #PC
-#folder_path = "C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/PdCorrection tables" #Laptop
+
 
 def nr_to_dict(numbers_to_search):
     #returns the corresponding amount of error tables in a dictionary form with the key being the value the table is for
@@ -652,7 +652,7 @@ def plot_MvsT(raamat, const_H_values, MvsT_indices):
             T2 = df[1]["Temperature (K)"] if len(df) > 1 else None
             M2 = df[1]["Moment (emu)"] if len(df) > 1 else None
             
-            ax.plot(T1,M1,color = "green", label = "Ascending")
+            ax.plot(T1,M1,color = "green", label = "Ascending") # peaks tegelt kontrollima kas kasvab või kahaneb
             ax.plot(T2,M2,color = "red", label = "Descending") if len(df) > 1 else None #, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
             ax.set_title(f"M vs T at {key} Oe")
             ax.set_xlabel("Temperature (K)")
@@ -699,8 +699,8 @@ def plot_MvsH(raamat, const_T_values, interpolated_MvsH, MvsH_indices):
                 ax.plot(H4, M2, color = "red")
                 ax.legend()
                 
-            ax.plot(H1,M1,color = "blue", label = "Ascending")
-            ax.plot(H2,M2,color = "orange", label = "Descending")
+            ax.plot(H1,M1,color = "blue", label = "Descending") 
+            ax.plot(H2,M2,color = "orange", label = "Ascending")
             
             val = int(key1) #!!! siin peaks ka probleem tekkima, kui mitu möötmist samal tempil
             
@@ -898,7 +898,7 @@ def what_path_main(measurement_type_token):
         separated_MvsT = separate_MvsT(separation_index_Mvst, MvsT_indices)
         dict_MvsT = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
         
-        #Separating MvsH measurements
+        #Separating MvsH measurements SIIA
         separated_MvsH_indices = separate_MvsH_index(MvsH_indices) #the indices where the separation is going to be done
         separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
         dict_MvsH = separated_into_dict_pair(separated_MvsH, const_T_values, "Temperature (K)")

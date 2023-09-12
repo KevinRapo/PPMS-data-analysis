@@ -267,7 +267,7 @@ def get_const_temp(const):
 
 #------------Filtering const temp points from the data for MvsH------
 
-def get_measurement_MvsH(const_T_values, bound = 0.05): #!!!
+def get_measurement_MvsH(const_T_values, bound = 0.05): #!!! Siit hakkab const väärtusi kasutama
     #Saves all the indices of the points that fall between the bound
     table = MEASUREMENT_TABLE['Temperature (K)']
     filtered_dfs = []
@@ -456,7 +456,7 @@ def get_const_M_for_MvsT(count):
 
 #--------------------Filtering const H points from the data for MvsT---------
 
-def get_measurement_MvsT(const_H_values): #!!!
+def get_measurement_MvsT(const_H_values): #!!! Siit hakkab const väärtusi kasutama
     #Saves all the indices of the points that are equal to the predetermined H value
     row_indices = []
     table = MEASUREMENT_TABLE['Magnetic Field (Oe)']
@@ -601,94 +601,6 @@ def separate_MvsT(separation_index, MvsT_indices):
         
     return separated_pair
 
-# def separate_MvsT(separation_index, MvsT_indices):
-#     #Separates the points based on the index and returns the separated series in pairs
-#     separated_pair = []
-    
-#     min_index_list = separation_index[0].tolist() #Siit jätka, probleem et enne üli üks tuple nüüd list kus min/max indeksid
-#     max_index_list = separation_index[1].tolist()
-
-#     i = 0
-#     j = 0
-    
-#     for indices in MvsT_indices:
-
-#         tabel = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices]
-    
-#         for max_index in max_index_list:
-            
-#             separated = []
-
-#             if max_index in indices:
-                
-#                 sliced1 = tabel.loc[min_index_list[j]:max_index]
-#                 separated.append(sliced1)
-                
-#                 if j == len(min_index_list) - 1:
-#                     sliced2 = tabel.loc[max_index+1:min_index_list[j]]
-                    
-#                 else:
-#                     sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
-#             else:
-#                 max_index_list = max_index_list[j:]
-                
-#                 break
-            
-#             separated.append(sliced2)
-#             separated_pair.append(separated)
-            
-#             j += 1
-            
-#         i += 1
-        
-#     return separated_pair
-
-
-# def separate_MvsT_index_for_both(MvsT_indices): #!!! saab vist kokku panna indekseerimise
-#     #Finds the index where to separate the measurement into multiple series,
-#     #each series being the temperature increase from lower to higher.
-#     #if the previous value is bigger than the current one, then it's considered the breaking point
-#     transition_indices = []
-    
-#     for indices_range in MvsT_indices:
-#         series = MEASUREMENT_TABLE["Temperature (K)"].loc[indices_range]
-#         previous_index = indices_range[0]  # Initialize with the starting index
-#         #print(series)
-#         for index in indices_range:
-#             if series.loc[index] < series.loc[previous_index]: #loc for index value based indexing, not iloc for label
-#                 transition_indices.append(index)
-#             previous_index = index
-            
-#     # if len(transition_indices) == 0: # the case where there was only one up/down cycle measured at that H value
-#     #     return MvsT_indices
-    
-#     return transition_indices
-
-# def separate_MvsT_for_both(separation_index, MvsT_indices): 
-#     #Separates the points based on the index and returns the separated series in pairs
-#     separated_pair = []
-    
-#     i = 0 #index for MvsT_indices elements
-    
-#     if len(separation_index) == 0: # the case where there was only only up cycle measured at that H
-#         for indices in MvsT_indices:
-#             whole = [MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices]]
-#             separated_pair.append(whole)
-#         return separated_pair
-    
-#     for index in separation_index:
-#         print("Mitmes separate_MvsT tsükkel: ",i)
-#         separated = []
-#         min_index = min(MvsT_indices[i])
-#         max_index = max(MvsT_indices[i])
-#         sliced1 = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[min_index:index-1]
-#         separated.append(sliced1)
-#         sliced2 = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[index:max_index]
-#         separated.append(sliced2)
-#         i += 1
-#         separated_pair.append(separated)
-    
-#     return separated_pair
 #-------------------------------------------------------------------------------------------------------------------------------------
 def separated_into_dict_pair(separated_pairs, const_val, column):
     # for interval:value pairs
@@ -922,6 +834,8 @@ def MvsT():
     
     return separated_MvsT, MvsT_indices, const_H_values
 
+
+#-------------Main function that runs the program---------------------
 def what_path_main(measurement_type_token):
     
     global ranges_temp, intervals_temp, const_T_interval, const_T_values, H_count, const_H_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
@@ -1005,10 +919,7 @@ def what_path_main(measurement_type_token):
 what_path_main(measurement_type_token)
 plot_timeseries()
 
-
-
-
-def plot_to_csv(indices, columns, folder_path, dType):
+def measurementDataToCSV(indices, columns, folder_path, dType):
     count = 0
     for index in indices:
 
@@ -1033,32 +944,14 @@ columns_to_save_MvsT = ["Temperature (K)", "Moment (emu)"]
 folder_path = 'C:/Users/kevin/OneDrive/Desktop/Andmetöötlus'  # laptop
 #folder_path = "C:/Users/Kevin/Desktop/Andmetöötlus/Projekt_andmed1" #PC
 
-if "MvsH_indices" not in globals():
-    plot_to_csv(MvsT_indices, columns_to_save_MvsT, folder_path, "MvsT")
+if "MvsH_indices" not in globals(): #See vist ei sobi kui hiljem muutujad ära peita
+    measurementDataToCSV(MvsT_indices, columns_to_save_MvsT, folder_path, "MvsT")
 elif "MvsT_indices" not in globals():
-    plot_to_csv(MvsH_indices, columns_to_save_MvsH, folder_path, "MvsH")
+    measurementDataToCSV(MvsH_indices, columns_to_save_MvsH, folder_path, "MvsH")
 else:
-    plot_to_csv(MvsT_indices, columns_to_save_MvsT, folder_path, "MvsT")
-    plot_to_csv(MvsH_indices, columns_to_save_MvsH, folder_path, "MvsH")
+    measurementDataToCSV(MvsT_indices, columns_to_save_MvsT, folder_path, "MvsT")
+    measurementDataToCSV(MvsH_indices, columns_to_save_MvsH, folder_path, "MvsH")
 
-
-
-# class PlotSetup:
-#     COLORS = list(mcolors.BASE_COLORS.keys())
-#     def __init__(self, Dict, const):
-#         self.Dict = Dict
-#         self.const = const
-#         self.interpolated = None
-#         self.indices = None
-        
-#     def setColorIndex(self, indices):
-#         self.indices = indices
-        
-#         for index in indices:
-            
-#             MEASUREMENT_TABLE.loc[index, "color"] = self.COLORS[0]
-#             self.COLORS.pop(0)
-#tester = PlotSetup(dict_MvsT, const_T_values)
 #Parameetrite test
 
 #Dataframe.to_excel(os.path.join(save_to_path,"parameterTest.xlsx"), index = False) sellega saab exceli faili näiteks teha parameetrite jaoks

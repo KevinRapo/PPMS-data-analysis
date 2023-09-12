@@ -551,25 +551,27 @@ def separation_index_for_mixed_series(indices, column_name):
         separation_index = separation_index_for_clean_series(filtered, column_name)
         
         tester.append(separation_index)
-        print("check mixed")
+        #print("check mixed")
         
     return tester
     
 def separate_MvsT(separation_index, MvsT_indices):
     #Separates the points based on the index and returns the separated series in pairs
     separated_pair = []
+    if not isinstance(separation_index, list):
+        separation_index = [separation_index]
     
-    for index in separation_index:
+    for min_max_index in separation_index:
         
-        min_index_list = index[0].tolist() #Siit jätka, probleem et enne üli üks tuple nüüd list kus min/max indeksid
-        max_index_list = index[1].tolist()
+        min_index_list = min_max_index[0].tolist() #Siit jätka, probleem et enne üli üks tuple nüüd list kus min/max indeksid
+        max_index_list = min_max_index[1].tolist()
     
         i = 0
         j = 0
         
         for indices in MvsT_indices:
     
-            tabel = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices]
+            tabel = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices] #VB SIIA VÄRV PANNA KUI EI OLE VAHET
         
             for max_index in max_index_list:
                 
@@ -642,51 +644,51 @@ def separate_MvsT(separation_index, MvsT_indices):
 #     return separated_pair
 
 
-def separate_MvsT_index_for_both(MvsT_indices): #!!! saab vist kokku panna indekseerimise
-    #Finds the index where to separate the measurement into multiple series,
-    #each series being the temperature increase from lower to higher.
-    #if the previous value is bigger than the current one, then it's considered the breaking point
-    transition_indices = []
+# def separate_MvsT_index_for_both(MvsT_indices): #!!! saab vist kokku panna indekseerimise
+#     #Finds the index where to separate the measurement into multiple series,
+#     #each series being the temperature increase from lower to higher.
+#     #if the previous value is bigger than the current one, then it's considered the breaking point
+#     transition_indices = []
     
-    for indices_range in MvsT_indices:
-        series = MEASUREMENT_TABLE["Temperature (K)"].loc[indices_range]
-        previous_index = indices_range[0]  # Initialize with the starting index
-        #print(series)
-        for index in indices_range:
-            if series.loc[index] < series.loc[previous_index]: #loc for index value based indexing, not iloc for label
-                transition_indices.append(index)
-            previous_index = index
+#     for indices_range in MvsT_indices:
+#         series = MEASUREMENT_TABLE["Temperature (K)"].loc[indices_range]
+#         previous_index = indices_range[0]  # Initialize with the starting index
+#         #print(series)
+#         for index in indices_range:
+#             if series.loc[index] < series.loc[previous_index]: #loc for index value based indexing, not iloc for label
+#                 transition_indices.append(index)
+#             previous_index = index
             
-    # if len(transition_indices) == 0: # the case where there was only one up/down cycle measured at that H value
-    #     return MvsT_indices
+#     # if len(transition_indices) == 0: # the case where there was only one up/down cycle measured at that H value
+#     #     return MvsT_indices
     
-    return transition_indices
+#     return transition_indices
 
-def separate_MvsT_for_both(separation_index, MvsT_indices): 
-    #Separates the points based on the index and returns the separated series in pairs
-    separated_pair = []
+# def separate_MvsT_for_both(separation_index, MvsT_indices): 
+#     #Separates the points based on the index and returns the separated series in pairs
+#     separated_pair = []
     
-    i = 0 #index for MvsT_indices elements
+#     i = 0 #index for MvsT_indices elements
     
-    if len(separation_index) == 0: # the case where there was only only up cycle measured at that H
-        for indices in MvsT_indices:
-            whole = [MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices]]
-            separated_pair.append(whole)
-        return separated_pair
+#     if len(separation_index) == 0: # the case where there was only only up cycle measured at that H
+#         for indices in MvsT_indices:
+#             whole = [MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[indices]]
+#             separated_pair.append(whole)
+#         return separated_pair
     
-    for index in separation_index:
-        print("Mitmes separate_MvsT tsükkel: ",i)
-        separated = []
-        min_index = min(MvsT_indices[i])
-        max_index = max(MvsT_indices[i])
-        sliced1 = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[min_index:index-1]
-        separated.append(sliced1)
-        sliced2 = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[index:max_index]
-        separated.append(sliced2)
-        i += 1
-        separated_pair.append(separated)
+#     for index in separation_index:
+#         print("Mitmes separate_MvsT tsükkel: ",i)
+#         separated = []
+#         min_index = min(MvsT_indices[i])
+#         max_index = max(MvsT_indices[i])
+#         sliced1 = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[min_index:index-1]
+#         separated.append(sliced1)
+#         sliced2 = MEASUREMENT_TABLE[["Temperature (K)","Moment (emu)"]].loc[index:max_index]
+#         separated.append(sliced2)
+#         i += 1
+#         separated_pair.append(separated)
     
-    return separated_pair
+#     return separated_pair
 #-------------------------------------------------------------------------------------------------------------------------------------
 def separated_into_dict_pair(separated_pairs, const_val, column):
     # for interval:value pairs
@@ -975,12 +977,11 @@ def what_path_main(measurement_type_token):
         MvsT_indices = get_measurement_MvsT(const_H_values)
         
         #Separating MvsT measurements
-        separated_MvsT_indices = separate_MvsT_index_for_both(MvsT_indices)# the indices where the separation is going to be done
-        separated_MvsT = separate_MvsT_for_both(separated_MvsT_indices, MvsT_indices)
+        # separated_MvsT_indices = separate_MvsT_index_for_both(MvsT_indices)# the indices where the separation is going to be done
+        # separated_MvsT = separate_MvsT_for_both(separated_MvsT_indices, MvsT_indices)
         
-        testUnfiltered = separation_index_for_mixed_series(MvsT_indices, "Temperature (K)")# the indices where the separation is going to be done
-        #testFiltered = None
-        separated_MvsT = separate_MvsT(testUnfiltered, MvsT_indices)
+        separation_index_Mvst = separation_index_for_mixed_series(MvsT_indices, "Temperature (K)")# the indices where the separation is going to be done
+        separated_MvsT = separate_MvsT(separation_index_Mvst, MvsT_indices)
         dict_MvsT = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
         
         #Separating MvsH measurements

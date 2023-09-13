@@ -563,7 +563,7 @@ def separate_MvsT(separation_index, MvsT_indices):
     
     for min_max_index in separation_index:
         
-        min_index_list = min_max_index[0].tolist() #Siit jätka, probleem et enne üli üks tuple nüüd list kus min/max indeksid
+        min_index_list = min_max_index[0].tolist()
         max_index_list = min_max_index[1].tolist()
     
         i = 0

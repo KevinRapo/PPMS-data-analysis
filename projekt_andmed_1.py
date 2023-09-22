@@ -267,7 +267,7 @@ def get_const_temp(const):
 
 #------------Filtering const temp points from the data for MvsH------
 
-def get_measurement_MvsH(const_T_values, bound = 0.05): #!!! Siit hakkab const väärtusi kasutama
+def get_measurement_MvsH(const_T_values, bound = 0.15): #!!! Siit hakkab const väärtusi kasutama
     #Saves all the indices of the points that fall between the bound
     table = MEASUREMENT_TABLE['Temperature (K)']
     filtered_dfs = []
@@ -499,8 +499,6 @@ def separation_index_for_clean_series(data, column_name, n = 15): # https://stac
     Returns:
     - DataFrame with 'min' and 'max' columns indicating local minima and maxima.
     """
-    global max_indices, min_indices, local_peaks, katse
-    #katse = data
     
     if isinstance(data, pd.Series):
         # Convert a Series to a DataFrame with a specified column name
@@ -595,6 +593,8 @@ def separate_measurement_with_color_idx(separation_index, measurement_indices, c
                 index2 = []
                 if max_index in indices:
                     
+                    # print("j:", j)
+                    # print(min_index_list)
                     sliced1 = tabel.loc[min_index_list[j]:max_index] #paaride data
                     separated.append(sliced1)
                     

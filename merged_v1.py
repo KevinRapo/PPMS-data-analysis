@@ -244,17 +244,13 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
             type_token["Temperature"] = "discrete"
             type_token["Field"] = "discrete"
             print("T discrete, H discrete = error \n")
-            
-            return type_token, temperatures_of_interest, magnetic_fields_of_interest
         
         else: #continous
         
             type_token["Temperature"] = "discrete"
             type_token["Field"] = "continous"
             print("T discrete, H continous = MvsH \n")
-            temperatures_of_interest = pd.concat([temperatures_of_interest,pd.Series(tempCount.index.values)], ignore_index = True) 
-
-            return type_token, temperatures_of_interest, magnetic_fields_of_interest
+            temperatures_of_interest = pd.concat([temperatures_of_interest,pd.Series(tempCount.index.values)], ignore_index = True)
             
     else: #continous
     
@@ -263,9 +259,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
             type_token["Temperature"] = "continous"
             type_token["Field"] = "discrete"
             print("T continous, H discrete = MvsT \n")
-            magnetic_fields_of_interest = pd.concat([magnetic_fields_of_interest,pd.Series(fieldCount.index.values)], ignore_index = True) 
-
-            return type_token, temperatures_of_interest, magnetic_fields_of_interest
+            magnetic_fields_of_interest = pd.concat([magnetic_fields_of_interest,pd.Series(fieldCount.index.values)], ignore_index = True)
         
         else: #continous
         
@@ -281,7 +275,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
             muutuja2 = rounded_dataset_H.value_counts() > meanFieldCount*10
             magnetic_fields_of_interest = pd.Series(rounded_dataset_H.value_counts()[muutuja2].index.values)
             
-            return type_token, temperatures_of_interest, magnetic_fields_of_interest
+    return type_token, temperatures_of_interest, magnetic_fields_of_interest
 
 #-------------------------------------------------------------------------------------
 
@@ -303,6 +297,30 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
         
     return filtered_dfs, all_indices
 
+def filterMeasurementIndices(unfiltered_indices):
+    filtered = []
+    
+    for unfiltered in unfiltered_indices:
+        
+        consecutive_sequences = []
+        current_sequence = [unfiltered[0]]
+    
+        for i in range(1, len(unfiltered)):
+            if unfiltered[i] - unfiltered[i - 1] == 1:
+                current_sequence.append(unfiltered[i])
+            else:
+                if len(current_sequence) > 1:
+                    consecutive_sequences.append(current_sequence)
+                current_sequence = [unfiltered[i]]
+    
+        # Check if the last sequence is consecutive and has more than one element
+        if len(current_sequence) > 1:
+            consecutive_sequences.append(current_sequence)
+        
+        longest_sequence = max(consecutive_sequences, key=len, default=[])
+        filtered.append(longest_sequence)
+    
+    return filtered
 #-------------- Actually Run the program here -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 

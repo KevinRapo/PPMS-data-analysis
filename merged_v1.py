@@ -295,8 +295,21 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
         filtered_dfs.append(filtered_df)
         all_indices.append(indices)
         
-    return filtered_dfs, all_indices
+    return all_indices #filtered_dfs
 
+def getMeasurementMvsT(const_H_values): #!!! Siit hakkab const väärtusi kasutama
+    #Saves all the indices of the points that are equal to the predetermined H value
+    row_indices = []
+    table = ORIGINAL_DATAFRAME['Magnetic Field (Oe)']
+    
+    for value in const_H_values:
+        
+        indices = table.index[table == value].tolist()
+        row_indices.append(indices)
+
+    return row_indices
+
+#eraldab kõik järjestiku kasvavad indeksid ja siis väljastab kõige pikema
 def filterMeasurementIndices(unfiltered_indices):
     filtered = []
     
@@ -358,10 +371,11 @@ TYPE_TOKEN, TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST= checkMeasurem
 #print(TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST)
 print("_________end-----------")
 
-TEST1, test2 = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
+unfiltered_MvsH_indices = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
 
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
+
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0:
     print('no MvsH detected')
     
@@ -371,6 +385,7 @@ else:
     
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
+
 if TEMPERATURES_OF_INTEREST.size <= 0:
     print('no MvsT detected')
     

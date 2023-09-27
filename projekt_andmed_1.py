@@ -286,23 +286,6 @@ def get_measurement_MvsH(const_T_values, bound = 0.15): #!!! Siit hakkab const v
         
     return filtered_dfs, all_indices
 
-
-# def filter_indices_noise(unfiltered_MvsH_indices):
-#     #Filters the points based on the difference between the indices,
-#     #if it's 1 then the points are considered of interest.
-#     global table
-#     filtered_table = []
-#     j = 0
-#     for table in unfiltered_MvsH_indices:
-#         filtered = [table[i] for i in range(len(table)-1) if table[i+1] - table[i] == 1] # see tingimus siin ei tundu väga kindel
-
-#         if table[-1] - table[-2] == 1: #Extra condition for the last element
-#             filtered.append(table[-1])
-#         filtered_table.append(filtered)
-#         j += 1
-        
-#     return filtered_table
-
 def filter_indices_noise(unfiltered_indices):
     filtered = []
     

@@ -218,7 +218,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
     type_token = {"Temperature": None, "Field": None}
     
     rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
-    rounded_dataset_H = measurement_table["Magnetic Field (Oe)"].round(decimals=1)
+    rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=1)
     
     #returnitavad Seried
     magnetic_fields_of_interest = pd.Series(dtype=float)
@@ -277,39 +277,217 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
             
     return type_token, temperatures_of_interest, magnetic_fields_of_interest
 
-#-------------------------------------------------------------------------------------
+#----------------------------------------MvsH specific functions-------------------------
 
-#kumbki funktsioon, et const väärtuste põhjal mõõtmise punktid võtta
-
+#const väärtuste põhjal mõõtmise punktid võtab
 def getMeasurementMvsH(const_T_values, bound = 0.15):
     #Saves all the indices of the points that fall between the bound
-    table = ORIGINAL_DATAFRAME['Temperature (K)']
+    table = ORIGINAL_DATAFRAME[['Temperature (K)', "color"]]
     filtered_dfs = []
     all_indices = []
     
     for value in const_T_values:
         lower = value - bound
         upper = value + bound
-        filtered_df = table[(table >= lower) & (table <= upper)]
+        filtered_df = table[(table['Temperature (K)'] >= lower) & (table['Temperature (K)'] <= upper) & (table['color'] == "black") ]
         indices = filtered_df.index.tolist()
         filtered_dfs.append(filtered_df)
         all_indices.append(indices)
         
     return all_indices #filtered_dfs
 
-def getMeasurementMvsT(const_H_values): #!!! Siit hakkab const väärtusi kasutama
+#ümardab iga mõõtmise max välja ilusaks numbriks, et saaks võtta õige korrektsiooni tabeli
+def roundFieldForCorrection(indices):
+    #rounds the magnetic field to a nice number (100041.221 -> 100000)
+    values = []
+    for indices in indices:
+        MvsH = ORIGINAL_DATAFRAME["Magnetic Field (Oe)"].loc[indices]
+        max_range = max(MvsH)
+        if max_range >= 10000:
+            nr = round(max_range / 1000) * 1000
+        elif max_range >= 1000:
+            nr = round(max_range / 100) * 100
+        elif max_range >= 100:
+            nr = round(max_range / 10) * 10
+        else:
+            nr = round(max_range)
+        values.append(nr)
+        
+    return values
+
+#otsib vastava max välja järgi õiged korrektsiooni tabelid
+def searchCorrectionTable(folder_path, number):
+    #searches for the right table based on the value in the title and returns the filepath
+    
+    for filename in os.listdir(folder_path):
+        # Split the filename on a specific character, e.g., underscore
+        parts = filename.split('_') # Modify this based on your file naming convention
+        # Check if the number is an exact match in any part of the filename
+        
+        if str(number) in parts:
+            file_path = os.path.join(folder_path, filename)
+            return file_path
+        
+    return None
+
+correction_folder_path = os.path.join(USER_PATH,'PdCorrection tables')
+
+def CorrectionTableToDict(numbers_to_search):
+    #returns the corresponding amount of error tables for each unique value in a dictionary form with the key being the value the table is for
+    error_tables = {}
+    
+    for nr in numbers_to_search:
+        error_table_path = searchCorrectionTable(correction_folder_path, nr)
+        
+        if error_table_path is None:
+            print(f"{nr} Oe jaoks ei leia parandustabelit ")
+            continue
+        error_table_measurements = pd.read_csv(error_table_path, index_col=0, encoding="ANSI")
+        error_tables[nr] = error_table_measurements
+        
+    return error_tables
+
+def interpolateTrueField(magnetic_field_values, error_table_measurements):
+    x = error_table_measurements["Magnetic Field (Oe)"]
+    y = error_table_measurements["True Field (Oe)"]
+
+    # Create an interpolation function
+    interp_func = interp1d(x, y, kind='linear', fill_value='extrapolate')
+
+    # Call the interpolation function with magnetic_field_values to get the interpolated values
+    true_field_interpolated = interp_func(magnetic_field_values)
+    return true_field_interpolated
+
+def interpolateMvsH(separated_MvsH, error_tables):
+    #replaces the old field values with the correct interpolated value
+    global true_field_interpolated1
+    
+    interpolated_dict = {}
+    for val_pair in separated_MvsH:
+        max_val = max(val_pair[0]["Magnetic Field (Oe)"]) # [0] ei pruugi alati õige max anda
+        
+        for key in error_tables:
+            if max_val - 100 <= key <= max_val + 100:
+                print(f"{key} kukub {max_val} vahemikku")
+                
+                interpolated = []
+                for val in val_pair:
+                    
+                    magnetic_field_values = val["Magnetic Field (Oe)"]
+                    true_field_interpolated1 = interpolateTrueField(magnetic_field_values, error_tables[key])
+
+                    true_field_pd = pd.DataFrame({"True Field (Oe)": true_field_interpolated1})
+                    interpolated.append(true_field_pd)
+                    
+                if key not in interpolated_dict:
+                    interpolated_dict[key] = []
+                    
+                interpolated_dict[key].append(interpolated) #algul oli üks tab edasi
+            else:
+                print(f"{key} ei kuku {max_val} vahemikku")
+                
+    return interpolated_dict
+
+def plotMvsH(raamat, const_T_values, interpolated_MvsH, MvsH_indices):
+    #Plots the MvsH measurement pair with different colors
+    
+    for key1 in raamat:
+        
+        for df in raamat[key1]:
+            
+            fig, ax = plt.subplots()
+            H1 = df[0]["Magnetic Field (Oe)"]
+            M1 = df[0]["Moment (emu)"]
+            H2 = df[1]["Magnetic Field (Oe)"]
+            M2 = df[1]["Moment (emu)"] 
+            
+            colorIdx = df[0].iloc[0].name
+            Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
+            print("värv",Color)
+            
+            for key2 in interpolated_MvsH:
+                
+                for df_interpolated in interpolated_MvsH[key2]:
+                    
+                    H3 = df_interpolated[0]["True Field (Oe)"]
+                    H4 = df_interpolated[1]["True Field (Oe)"]
+                    
+                    if len(H3) != len(M1) or len(H4) != len(M2):
+                        #Siin ongi see, et ei ole interpoleeritud punkte, siis x/y erineva pikkusega ja ei saa joonistada
+                        #print(f"Warning: Length mismatch between True Field and Moment data for {key1} K.") #error selles,et pole correction tabelit iga välja tugevuse jaoks
+                        continue  # Continue to the next iteration
+                        
+                    ax.plot(H3, M1, color = Color, label = "True Field Descending", alpha = 0.5)
+                    ax.plot(H4, M2, color = Color, label = "True Field Ascending")
+                    ax.legend()
+            
+            
+            ax.plot(H1 ,M1, color = "grey", label = "Descending") 
+            ax.plot(H2, M2, color = "grey", label = "Ascending")
+            
+            val = int(key1)
+            
+            plot_title = f"M vs H at {val} K"
+            ax.set_title(plot_title)
+            ax.set_xlabel("Magnetic field (Oe)")
+            ax.set_ylabel("Moment (emu)")
+            ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
+            ax.grid(True)
+            #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
+            fig.savefig(os.path.join(save_to_path,f'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
+            plt.show()
+        
+    return None
+#-----------------------------MvsT specific functions--------------------------------
+
+#const väärtuste põhjal mõõtmise punktid võtab
+def getMeasurementMvsT(const_H_values):
     #Saves all the indices of the points that are equal to the predetermined H value
     row_indices = []
     table = ORIGINAL_DATAFRAME['Magnetic Field (Oe)']
     
     for value in const_H_values:
-        
+        print(" MvsT", value)
         indices = table.index[table == value].tolist()
         row_indices.append(indices)
 
     return row_indices
 
-#eraldab kõik järjestiku kasvavad indeksid ja siis väljastab kõige pikema
+def plotMvsT(raamat, const_H_values, MvsT_indices):
+    #Plots the MvsT measurement pair with different colors
+
+    # ascending_color = ""
+    # descending_color = ""
+    
+    for key in raamat:
+        
+        for df in raamat[key]:
+
+            fig, ax = plt.subplots()
+            T1 = df[0]["Temperature (K)"]
+            M1 = df[0]["Moment (emu)"]
+            T2 = df[1]["Temperature (K)"] if len(df) > 1 else None
+            M2 = df[1]["Moment (emu)"] if len(df) > 1 else None
+            
+            colorIdx = df[0].iloc[0].name
+            Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
+            
+            ax.plot(T1,M1,color = Color, label = "Ascending", alpha = 0.5) # peaks tegelt kontrollima kas kasvab või kahaneb
+            ax.plot(T2,M2,color = Color, label = "Descending") if len(df) > 1 else None #, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
+            ax.set_title(f"M vs T at {key} Oe")
+            ax.set_xlabel("Temperature (K)")
+            ax.set_ylabel("Moment (emu)")
+            ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
+            ax.grid(True)
+            fig.savefig(os.path.join(save_to_path,f'MvsT_graph_at_{key}K.png'),bbox_inches = "tight", dpi = 200)
+            plt.show()
+        
+    return None
+
+#---------------------------------------Universal functions that both paths use----------------------------------------------
+
+#eraldab kõik järjestikku kasvavad indeksid ja siis väljastab kõige pikema vahemiku,
+#kõige pikem vahemik on mõõtmine ise
 def filterMeasurementIndices(unfiltered_indices):
     filtered = []
     
@@ -334,11 +512,185 @@ def filterMeasurementIndices(unfiltered_indices):
         filtered.append(longest_sequence)
     
     return filtered
+
+#otsib mingi series'e lokaalsed ekstreemumid hilisemaks eraldamiseks
+def separationIndexForSingleSeries(data, column_name, n = 15): # !!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+    """
+    Find local peaks indices (maxima and minima) in a DataFrame or Series.
+
+    Parameters:
+    - data: DataFrame or Series.
+    - column_name: Name of the column to analyze.
+    - n: Number of points to be checked before and after.
+
+    Returns:
+    - DataFrame with 'min' and 'max' columns indicating local minima and maxima.
+    """
+    
+    if isinstance(data, pd.Series):
+        # Convert a Series to a DataFrame with a specified column name
+        data = pd.DataFrame({column_name: data})
+    
+    index = data.index
+    
+    # Find local peaks
+    relative_min_indices = argrelextrema(data[column_name].values, np.less_equal, order=n)[0]
+    relative_max_indices = argrelextrema(data[column_name].values, np.greater_equal, order=n)[0]
+    
+    min_indices = index[relative_min_indices]
+    max_indices = index[relative_max_indices]
+    
+    # Create a DataFrame to store results
+    local_peaks = pd.DataFrame(index=index)
+    local_peaks['min'] = np.nan
+    local_peaks['max'] = np.nan
+    
+    # Fill in the 'min' and 'max' columns with peak values 
+    local_peaks.loc[min_indices, 'min'] = data.loc[min_indices, column_name]
+    local_peaks.loc[max_indices, 'max'] = data.loc[max_indices, column_name]
+    
+    # Extract max min indices
+    mask = local_peaks.notna()
+    max_indices = local_peaks["max"].index[mask["max"]]
+    min_indices = local_peaks["min"].index[mask["min"]]
+    
+    # Plot results, tegelikult pole vaja, aga hea kontrollida kas tegi õigesti
+    plt.scatter(data.index, local_peaks['min'], c='r', label='Minima')
+    plt.scatter(data.index, local_peaks['max'], c='g', label='Maxima')
+    plt.plot(data.index, data[column_name], label=column_name)
+    plt.legend()
+    plt.show()
+        
+    return min_indices, max_indices
+
+#Võtab originaalsest tabelist vastavale mõõtmisele vastavad punktid ja edastab need separationIndexForSingleSeries
+#funktsioonile eraldamiseks
+def separationIndexForMultipleSeries(indices, column_name):
+    series = []
+    
+    for index in indices:
+        
+        filtered = ORIGINAL_DATAFRAME[column_name].loc[index]
+        separation_index = separationIndexForSingleSeries(filtered, column_name)
+        series.append(separation_index)
+        
+    return series
+
+def separateMeasurementWithColorIdx(separation_index, measurement_indices, column):
+    #Separates the points based on the index and returns the separated series in pairs with their color
+    # global separated_pair1
+    separated_pair1 = []
+    pair_indices = []
+    
+    if not isinstance(separation_index, list):
+        separation_index = [separation_index]
+    
+    for min_max_index in separation_index:
+        
+        if min_max_index[0][0] < min_max_index[1][0]: #kontroll selleks et kas andmed on + - + või - + -
+            min_index_list = min_max_index[0].tolist()
+            max_index_list = min_max_index[1].tolist()
+        else:
+            min_index_list = min_max_index[1].tolist()
+            max_index_list = min_max_index[0].tolist()
+    
+        j = 0
+        
+        for indices in measurement_indices:
+    
+            tabel = ORIGINAL_DATAFRAME[[column,"Moment (emu)"]].loc[indices] #VB SIIA VÄRV PANNA KUI EI OLE VAHET
+        
+            for max_index in max_index_list:
+                
+                separated = []
+                index1 = []
+                index2 = []
+                if max_index in indices:
+                    
+                    sliced1 = tabel.loc[min_index_list[j]:max_index] #paaride data
+                    separated.append(sliced1)
+                    
+                    ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index, "color"] = COLORS[0] #värvid paaridele
+                    
+                    index1 = ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index].index.tolist() #paaride indeksid
+                    
+                    if j == len(min_index_list) - 1:
+                        sliced2 = tabel.loc[max_index+1:min_index_list[j]]
+                        
+                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j], "color"] = COLORS[0]
+                        
+                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j]].index.tolist()
+                        
+                    else:
+                        sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
+                        
+                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1], "color"] = COLORS[0]
+                        
+                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1]].index.tolist()
+                else:
+                    max_index_list = max_index_list[j:]
+
+                    break
+                
+                pair_indices.append(index1 + index2)
+                separated.append(sliced2)
+                separated_pair1.append(separated)
+                
+                COLORS.pop(0)
+                j += 1
+        
+    return separated_pair1, pair_indices
+
+def separateIntoDictValuePair(separated_pairs, const_val, column):
+    # for interval:value pairs
+    raamat = {}
+    
+    for const in const_val:
+        
+        for val in separated_pairs:
+            
+            index_to_check = val[0].index[0]
+            val_to_check = ORIGINAL_DATAFRAME[column].iloc[index_to_check]
+            print(f"kontrollib väärtust {const}:", val_to_check)
+            
+            if val_to_check == const or round(val_to_check) == round(const):
+                print("siin")
+                key = const
+                if key not in raamat:
+                    raamat[key] = []  # Create an empty list for this key if it doesn't exist
+                    
+                raamat[key].append(val)  # Append the value to the list associated with the key
+
+    return raamat
+
+def plotMeasurementTimeseries(): 
+
+    # Create subplots with shared x-axis
+    fig, axes = plt.subplots(nrows=3, sharex=True)
+    
+    # Plot data on each subplot
+    time_axis = "Time Stamp (sec)"
+    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Temperature (K)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[0])
+    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Moment (emu)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[1])
+    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Magnetic Field (Oe)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[2])
+    
+    # Customize axes labels and other properties
+    
+    axes[0].set_ylabel("Temperature (K)")
+    axes[1].set_ylabel("Moment (emu)")
+    axes[2].set_ylabel("Magnetic Field (Oe)")
+    axes[-1].set_xlabel("Time Stamp (sec)")
+    
+    # Show the plot
+    plt.show()
+    
+    return None
 #-------------- Actually Run the program here -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
 # Ask user input to get a path to datafile
 DATAFILE_PATH = askNewDatafilePath()
+save_to_path = os.path.dirname(DATAFILE_PATH)
 
 # Read the datafile
 HEADER, ORIGINAL_DATAFRAME = readDatafile(DATAFILE_PATH)
@@ -360,9 +712,10 @@ elif OPTION_TYPE == "ACMS":
 #parse HEADER
 SAMPLE_MASS_g = getMassInGrams(HEADER)
 SAMPLE_AREA_CM2 = getAreaCM2(HEADER)
-THIKNESS = getThickness(HEADER)
+THICKNESS = getThickness(HEADER)
 
-
+COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange"]
+ORIGINAL_DATAFRAME["color"] = "black"
 
 print("_________chechMeasurementType2-----------")  #mis peaks olema selle funktsiooni ebaõnnestumise/veateade? return None? või lihtsalt kaks tühja Seriet?
 # Tagastab kaks Pandas.Seriest: temperatures_of_interest, magnetic_fields_of_interest
@@ -371,7 +724,6 @@ TYPE_TOKEN, TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST= checkMeasurem
 #print(TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST)
 print("_________end-----------")
 
-unfiltered_MvsH_indices = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
 
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
@@ -383,6 +735,15 @@ else:
     print(' MvsH data detected')
     print(MAGNETIC_FIELDS_OF_INTEREST)
     
+    unfiltered_MvsT_indices = getMeasurementMvsT(MAGNETIC_FIELDS_OF_INTEREST)
+    MvsT_INDICES = filterMeasurementIndices(unfiltered_MvsT_indices)
+    
+    separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")# the indices where the separation is going to be done
+    separated_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+    
+    DICT_MvsT = separateIntoDictValuePair(separated_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)")
+    
+    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST, MvsT_INDICES)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
@@ -392,9 +753,25 @@ if TEMPERATURES_OF_INTEREST.size <= 0:
 else:
     print(' MvsT data detected')
     print(TEMPERATURES_OF_INTEREST)
+    
+    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
+    MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
+    
+    separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
+    SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
+    
+    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)")
+    
+    correction_field_value = roundFieldForCorrection(MvsH_INDICES)
+    CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
+    INTERPOLATED_MvsH = interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
+    
+    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST, INTERPOLATED_MvsH, MvsH_INDICES)
+    
+print('--------<<<<<<<<<>>>>>>>>>>-----------')
+print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
-print('--------<<<<<<<<<>>>>>>>>>>-----------')
-print('--------<<<<<<<<<>>>>>>>>>>-----------')
+plotMeasurementTimeseries()
 
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')

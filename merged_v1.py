@@ -358,7 +358,6 @@ def interpolateTrueField(magnetic_field_values, error_table_measurements):
 
 def interpolateMvsH(separated_MvsH, error_tables):
     #replaces the old field values with the correct interpolated value
-    global true_field_interpolated1
     
     interpolated_dict = {}
     for val_pair in separated_MvsH:
@@ -372,9 +371,11 @@ def interpolateMvsH(separated_MvsH, error_tables):
                 for val in val_pair:
                     
                     magnetic_field_values = val["Magnetic Field (Oe)"]
-                    true_field_interpolated1 = interpolateTrueField(magnetic_field_values, error_tables[key])
-
-                    true_field_pd = pd.DataFrame({"True Field (Oe)": true_field_interpolated1})
+                    true_field_interpolated = interpolateTrueField(magnetic_field_values, error_tables[key])
+                    
+                    val["True Field (Oe)"] = true_field_interpolated
+                    
+                    true_field_pd = pd.DataFrame({"True Field (Oe)": true_field_interpolated})
                     interpolated.append(true_field_pd)
                     
                 if key not in interpolated_dict:
@@ -402,22 +403,11 @@ def plotMvsH(raamat, const_T_values, interpolated_MvsH, MvsH_indices):
             colorIdx = df[0].iloc[0].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
-            for key2 in interpolated_MvsH:
-                
-                for df_interpolated in interpolated_MvsH[key2]:
-                    
-                    H3 = df_interpolated[0]["True Field (Oe)"]
-                    H4 = df_interpolated[1]["True Field (Oe)"]
-                    
-                    if len(H3) != len(M1) or len(H4) != len(M2):
-                        #Siin ongi see, et ei ole interpoleeritud punkte, siis x/y erineva pikkusega ja ei saa joonistada
-                        #print(f"Warning: Length mismatch between True Field and Moment data for {key1} K.") #error selles,et pole correction tabelit iga välja tugevuse jaoks
-                        continue  # Continue to the next iteration
-                        
-                    ax.plot(H3, M1, color = Color, label = "True Field Descending", alpha = 0.5)
-                    ax.plot(H4, M2, color = Color, label = "True Field Ascending")
-                    ax.legend()
+            H3 = df[0]["True Field (Oe)"]
+            H4 = df[1]["True Field (Oe)"]   
             
+            ax.plot(H3, M1, color = Color, label = "True Field Descending", alpha = 0.5)
+            ax.plot(H4, M2, color = Color, label = "True Field Ascending")
             
             ax.plot(H1 ,M1, color = "grey", label = "Descending") 
             ax.plot(H2, M2, color = "grey", label = "Ascending")
@@ -431,7 +421,7 @@ def plotMvsH(raamat, const_T_values, interpolated_MvsH, MvsH_indices):
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
             ax.grid(True)
             #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
-            fig.savefig(os.path.join(save_to_path,f'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
+            fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
             plt.show()
         
     return None
@@ -476,7 +466,7 @@ def plotMvsT(raamat, const_H_values, MvsT_indices):
             ax.set_ylabel("Moment (emu)")
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
             ax.grid(True)
-            fig.savefig(os.path.join(save_to_path,f'MvsT_graph_at_{key}K.png'),bbox_inches = "tight", dpi = 200)
+            fig.savefig(os.path.join(folder_name,f'MvsT_graph_at_{key}K.png'),bbox_inches = "tight", dpi = 200)
             plt.show()
         
     return None
@@ -683,6 +673,67 @@ def plotMeasurementTimeseries():
     return None
 
 
+def setColumnForType(indices, type_string):
+    
+    for idx in indices:
+        
+        ORIGINAL_DATAFRAME.loc[idx, "Type"] = type_string
+        
+    return None
+
+
+def addParameterColumns(separated, type_string):
+    
+    temp = "Temperature (K)"
+    field = "Magnetic Field (Oe)"
+    moment = "Moment (emu)"
+    error = "M. Std. Err. (emu)"
+    momentDivMass = "Moment (emu)/mass(g)"
+    momentDivArea = "Moment (emu)/area(cm2)"
+    momentDivVolume = "Moment (emu)/volume(cm3)"
+    susceptibility = "Susceptibility (emu/g Oe)"
+    oneOverSusceptibility = "1/Susceptibility"
+    
+    volume = SAMPLE_AREA_CM2*THICKNESS if SAMPLE_AREA_CM2 or THICKNESS else None
+    
+    for pair in separated:
+        
+        for series in pair:
+            
+            if type_string == "MvsH":
+                
+                indices = series.index
+                series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
+                
+            elif type_string == "MvsT":
+                
+                indices = series.index
+                series[field] = ORIGINAL_DATAFRAME.loc[indices, field]
+                
+            series[error] = ORIGINAL_DATAFRAME.loc[indices, error]
+            series[momentDivMass] = series[moment]/SAMPLE_MASS_g if SAMPLE_MASS_g else None
+            series[momentDivArea] = series[moment]/SAMPLE_AREA_CM2 if SAMPLE_AREA_CM2 else None
+            series[momentDivVolume] = series[moment]/volume if volume else None
+            series[susceptibility] = series[moment]/(SAMPLE_MASS_g*series[field]) 
+            series[oneOverSusceptibility] = 1/(series[moment]/(SAMPLE_MASS_g*series[field]))
+            
+    return None
+
+def appendAndSave(dictionary, dType):
+    
+    for key in dictionary:
+        
+        for pair in dictionary[key]:
+            
+            result = pd.concat([pair[0], pair[1]])
+            
+            file_name = f'{dType}_data_at_{key}.csv'
+            
+            full_path = os.path.join(folder_name, file_name)
+            
+            result.to_csv(full_path, index = False)
+            
+    return None
 #-------------- Actually Run the program here -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -727,6 +778,13 @@ print("_________end-----------")
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
+#creates a column "Type" for each data point type
+ORIGINAL_DATAFRAME["Type"] = ""
+
+#Creates a folder for the current data file to save related files
+folder_name = os.path.splitext(DATAFILE_PATH)[0] + ""
+os.makedirs(folder_name, exist_ok = True)
+
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0:
     print('no MvsT detected')
     
@@ -740,11 +798,15 @@ else:
     separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")# the indices where the separation is going to be done
     
     try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
-        separated_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+        SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
     except IndexError as ie:
         raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
         
-    DICT_MvsT = separateIntoDictValuePair(separated_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)")
+    DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)")
+    
+    setColumnForType(MvsT_INDICES, "MvsT")
+    addParameterColumns(SEPARATED_MvsT, "MvsT")
+    appendAndSave(DICT_MvsT, "MvsT")
     
     plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST, MvsT_INDICES)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
@@ -773,71 +835,42 @@ else:
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     INTERPOLATED_MvsH = interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
     
-    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST, INTERPOLATED_MvsH, MvsH_INDICES)
+    setColumnForType(MvsH_INDICES, "MvsH")
+    addParameterColumns(SEPARATED_MvsH, "MvsH")
+    appendAndSave(DICT_MvsH, "MvsH")
     
+    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST, INTERPOLATED_MvsH, MvsH_INDICES)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')
 
+
+
 #Plots temp, field and moment against time
 plotMeasurementTimeseries()
 
+# #creates a column "Type" for each data point type
+# ORIGINAL_DATAFRAME["Type"] = ""
+# setColumnForType(MvsT_INDICES, "MvsT")
+# setColumnForType(MvsH_INDICES, "MvsH")
+
+# #Adds and calculates all columns of interest to each separate measurement cycle
+# addParameterColumns(SEPARATED_MvsH, "MvsH")
+# addParameterColumns(SEPARATED_MvsT, "MvsT")
 
 
-#Creating a pandas dataframe for different parameters
-# parameters = {"Temperature (K)": None, "Magnetic Field (Oe)": None, "True Field (Oe)": None, "Moment (emu)": None, "M. Std. Err. (emu)": None,\
-#         "Moment (emu)/mass(g)": None, "Moment (emu)/area(cm2)": None, "Moment (emu)/volume(cm3)": None, "Susceptibility (emu/g Oe)": None, "1/Susceptibility": None}
-
-# columns = ["Temperature (K)", "Magnetic Field (Oe)", "Moment (emu)", "M. Std. Err. (emu)"]
-    
-# MvsT_parameters = ORIGINAL_DATAFRAME.loc[MvsT_pair_indices[0], columns]
-
-# MvsT_parameters["Test column"] = range(491)
-
-# parameter_template = pd.DataFrame(data = parameters, index = [MvsT_pair_indices[0]])
-
-# MvsT_test = parameter_template
-# MvsH_test = parameter_template
-
-# values = ORIGINAL_DATAFRAME["Temperature (K)"].loc[MvsT_pair_indices[0]]
-# MvsT_test["Temperature (K)"] = values.copy
+# #Saves the measurement csv files
+# appendAndSave(DICT_MvsH, "MvsH") #KORRAKS OLI MINGI PERMISSION ERROR AGA HETKEL EI OSKA DUBLEERIDA SEDA
+# appendAndSave(DICT_MvsT, "MvsT")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# # Check if the folder already exists
+# if not os.path.exists(folder_name):
+#     # If it doesn't exist, create it
+#     os.makedirs(folder_name)
+# else:
+#     print(f"New folder '{folder_name}' already exists. \n\nIf you would like to create a new folder for the same file you can add something to the end of *folder_name* variable ")
 
 

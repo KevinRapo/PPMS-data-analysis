@@ -6,7 +6,6 @@ Created on Wed Sep 20 15:25:54 2023
 """
 
 import os
-import statistics as stat
 import re
 import pandas as pd
 import numpy as np
@@ -53,7 +52,6 @@ def readDatafile(file_path):
     header = pd.read_csv(file_path, nrows = i , index_col = 2, encoding = 'ANSI',names = ['1','2','3','4'], on_bad_lines = 'skip')
     data = pd.read_csv(file_path, skiprows = i, header = 0, encoding = "ANSI")
     data = data[data["Transport Action"] == 1]
-    #data = data.reset_index(drop=True)#!!!
     
     return header, data
 
@@ -368,7 +366,7 @@ def interpolateMvsH(separated_MvsH, error_tables):
         
         for key in error_tables:
             if max_val - 100 <= key <= max_val + 100:
-                print(f"{key} kukub {max_val} vahemikku")
+                #print(f"{key} kukub {max_val} vahemikku")
                 
                 interpolated = []
                 for val in val_pair:
@@ -383,8 +381,8 @@ def interpolateMvsH(separated_MvsH, error_tables):
                     interpolated_dict[key] = []
                     
                 interpolated_dict[key].append(interpolated) #algul oli üks tab edasi
-            else:
-                print(f"{key} ei kuku {max_val} vahemikku")
+            #else:
+                #print(f"{key} ei kuku {max_val} vahemikku")
                 
     return interpolated_dict
 
@@ -403,7 +401,6 @@ def plotMvsH(raamat, const_T_values, interpolated_MvsH, MvsH_indices):
             
             colorIdx = df[0].iloc[0].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
-            print("värv",Color)
             
             for key2 in interpolated_MvsH:
                 
@@ -447,7 +444,7 @@ def getMeasurementMvsT(const_H_values):
     table = ORIGINAL_DATAFRAME['Magnetic Field (Oe)']
     
     for value in const_H_values:
-        print(" MvsT", value)
+
         indices = table.index[table == value].tolist()
         row_indices.append(indices)
 
@@ -514,7 +511,7 @@ def filterMeasurementIndices(unfiltered_indices):
     return filtered
 
 #otsib mingi series'e lokaalsed ekstreemumid hilisemaks eraldamiseks
-def separationIndexForSingleSeries(data, column_name, n = 15): # !!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
 
@@ -642,7 +639,7 @@ def separateMeasurementWithColorIdx(separation_index, measurement_indices, colum
     return separated_pair1, pair_indices
 
 def separateIntoDictValuePair(separated_pairs, const_val, column):
-    # for interval:value pairs
+    # Creates a dict{const value the measurement was made at: measurement} 
     raamat = {}
     
     for const in const_val:
@@ -651,10 +648,9 @@ def separateIntoDictValuePair(separated_pairs, const_val, column):
             
             index_to_check = val[0].index[0]
             val_to_check = ORIGINAL_DATAFRAME[column].iloc[index_to_check]
-            print(f"kontrollib väärtust {const}:", val_to_check)
             
             if val_to_check == const or round(val_to_check) == round(const):
-                print("siin")
+                
                 key = const
                 if key not in raamat:
                     raamat[key] = []  # Create an empty list for this key if it doesn't exist
@@ -685,6 +681,8 @@ def plotMeasurementTimeseries():
     plt.show()
     
     return None
+
+
 #-------------- Actually Run the program here -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -697,16 +695,16 @@ HEADER, ORIGINAL_DATAFRAME = readDatafile(DATAFILE_PATH)
 
 # VSM or ACMSII? or maybe HC or ETO in the future
 OPTION_TYPE = determineDatafileType(HEADER)
-print(OPTION_TYPE)
+#print(OPTION_TYPE) kas teha nii et funk ise ei prindi ja prindid kui tahad või funktsioon prindib anyway?
 
 #Selle lisasin juurde kuna moment tulbas võib olla nan values ja enne pead kõik õiged tulbad võtma, et need eraldada, muidu eemaldab kõik read,
 # sest igas reas on mingi tulp nan value'ga
 if OPTION_TYPE == "VSM":
-    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "Moment (emu)"]].dropna()
+    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "Moment (emu)", "M. Std. Err. (emu)"]].dropna()
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
     
 elif OPTION_TYPE == "ACMS":
-    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "DC Moment (emu)"]].dropna()
+    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "DC Moment (emu)", "M. Std. Err. (emu)"]].dropna()
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
 
 #parse HEADER
@@ -714,6 +712,7 @@ SAMPLE_MASS_g = getMassInGrams(HEADER)
 SAMPLE_AREA_CM2 = getAreaCM2(HEADER)
 THICKNESS = getThickness(HEADER)
 
+#Color list for color idx and initializing the starting color idx with just black
 COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange"]
 ORIGINAL_DATAFRAME["color"] = "black"
 
@@ -729,18 +728,22 @@ print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0:
-    print('no MvsH detected')
+    print('no MvsT detected')
     
 else:
-    print(' MvsH data detected')
+    print(' MvsT data detected')
     print(MAGNETIC_FIELDS_OF_INTEREST)
     
     unfiltered_MvsT_indices = getMeasurementMvsT(MAGNETIC_FIELDS_OF_INTEREST)
     MvsT_INDICES = filterMeasurementIndices(unfiltered_MvsT_indices)
     
     separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")# the indices where the separation is going to be done
-    separated_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
     
+    try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
+        separated_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+    except IndexError as ie:
+        raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+        
     DICT_MvsT = separateIntoDictValuePair(separated_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)")
     
     plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST, MvsT_INDICES)
@@ -748,17 +751,21 @@ print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
 if TEMPERATURES_OF_INTEREST.size <= 0:
-    print('no MvsT detected')
+    print('no MvsH detected')
     
 else:
-    print(' MvsT data detected')
+    print(' MvsH data detected')
     print(TEMPERATURES_OF_INTEREST)
     
     unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     
     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
-    SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
+    
+    try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
+        SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
+    except IndexError as ie:
+        raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
     DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)")
     
@@ -771,7 +778,66 @@ else:
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
-plotMeasurementTimeseries()
-
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')
+
+#Plots temp, field and moment against time
+plotMeasurementTimeseries()
+
+
+
+#Creating a pandas dataframe for different parameters
+# parameters = {"Temperature (K)": None, "Magnetic Field (Oe)": None, "True Field (Oe)": None, "Moment (emu)": None, "M. Std. Err. (emu)": None,\
+#         "Moment (emu)/mass(g)": None, "Moment (emu)/area(cm2)": None, "Moment (emu)/volume(cm3)": None, "Susceptibility (emu/g Oe)": None, "1/Susceptibility": None}
+
+# columns = ["Temperature (K)", "Magnetic Field (Oe)", "Moment (emu)", "M. Std. Err. (emu)"]
+    
+# MvsT_parameters = ORIGINAL_DATAFRAME.loc[MvsT_pair_indices[0], columns]
+
+# MvsT_parameters["Test column"] = range(491)
+
+# parameter_template = pd.DataFrame(data = parameters, index = [MvsT_pair_indices[0]])
+
+# MvsT_test = parameter_template
+# MvsH_test = parameter_template
+
+# values = ORIGINAL_DATAFRAME["Temperature (K)"].loc[MvsT_pair_indices[0]]
+# MvsT_test["Temperature (K)"] = values.copy
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

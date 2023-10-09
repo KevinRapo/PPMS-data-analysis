@@ -118,22 +118,9 @@ def headerValueCheck(header, sample_property):
     #print("units:", unit)#Hetkel jääb
     
     return float_val, unit #Ühikutega peaks veel midagi tegema
-
-
-#parse HEADER, return mass, area, volume
-def parseHeader(header):
-    return "NaN"
-    
+  
 
 #returned parsed MASS from Header
-def getMass(header):
-    parameter = "SAMPLE_MASS"
-    
-    mass = headerValueCheck(header, parameter)
-
-    return mass
-
-
 def getMassInGrams(header):
     #If the mass > 1, indicating that it's input is in mg, divides it by a 1000 to get g
     parameter = "SAMPLE_MASS"
@@ -160,6 +147,8 @@ def getMassInGrams(header):
         
     return mass
 
+
+#Parsed sample size
 def getAreaCM2(header):
     #If the mass > 1, indicating that it's input is in mg, divides it by a 1000 to get g
     parameter = "SAMPLE_SIZE"
@@ -178,11 +167,10 @@ def getAreaCM2(header):
         
     print(f'Sample size is {area:.5f} {unit} \n') 
     return area
-
-
-
     
+
 # ei tea kas päris nii ikka teha
+#Parsed thickness
 def getThickness(data):
     #Checks whether the title contains sample thickness in nm units: e.g. "25nm" and outputs 25
     thickness = data.iloc[3,1] #Title index in table
@@ -200,21 +188,14 @@ def getThickness(data):
         return None
 
 
-
-
-
 #---------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Tuvastab kas sisaldab MvsH ja MvsT mõõtmisi. Tagastab kaks Pandas.Seriest: temperatures_of_interest, magnetic_fields_of_interest
+# Recognizes what measurement types are present in the file. Returns two Pandas.Series: temperatures_of_interest, magnetic_fields_of_interest
 # Mida peaks tagastama errori korral?
 
 def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
     #Checks what measurements the file contains
-    
-    #global uniques_T,uniques_H,codes_T
-    
-    type_token = {"Temperature": None, "Field": None}
-    
+       
     rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
     rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=1)
     
@@ -238,31 +219,23 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
     if ratio_T < discrete_detection_ration: #discrete
     
         if ratio_H < discrete_detection_ration: #discrete
-        
-            type_token["Temperature"] = "discrete"
-            type_token["Field"] = "discrete"
+
             print("T discrete, H discrete = error \n")
         
         else: #continous
         
-            type_token["Temperature"] = "discrete"
-            type_token["Field"] = "continous"
             print("T discrete, H continous = MvsH \n")
             temperatures_of_interest = pd.concat([temperatures_of_interest,pd.Series(tempCount.index.values)], ignore_index = True)
             
     else: #continous
     
         if ratio_H < discrete_detection_ration: #discrete
-        
-            type_token["Temperature"] = "continous"
-            type_token["Field"] = "discrete"
+
             print("T continous, H discrete = MvsT \n")
             magnetic_fields_of_interest = pd.concat([magnetic_fields_of_interest,pd.Series(fieldCount.index.values)], ignore_index = True)
         
         else: #continous
-        
-            type_token["Temperature"] = "continous"
-            type_token["Field"] = "continous"
+
             print("T continous, H continous = both \n")
             
             meanTempCount=tempCount.mean()                     #see osa siin annab segafailide puhul mõistlikud numbrid. Aga mõne erilisema faili korral ei saa ta aru et sega fail on, aga need read annavad ka siis mõistlikud numbrid. Äkki saame kuidagi hoopis neid prinditavaid liste kasutada faili ära tundmiseks.
@@ -273,11 +246,11 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
             muutuja2 = rounded_dataset_H.value_counts() > meanFieldCount*10
             magnetic_fields_of_interest = pd.Series(rounded_dataset_H.value_counts()[muutuja2].index.values)
             
-    return type_token, temperatures_of_interest, magnetic_fields_of_interest
+    return temperatures_of_interest, magnetic_fields_of_interest
 
 #----------------------------------------MvsH specific functions-------------------------
 
-#const väärtuste põhjal mõõtmise punktid võtab
+#Measurement indices based on the const T values
 def getMeasurementMvsH(const_T_values, bound = 0.15):
     #Saves all the indices of the points that fall between the bound
     table = ORIGINAL_DATAFRAME[['Temperature (K)', "color"]]
@@ -294,7 +267,7 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
         
     return all_indices #filtered_dfs
 
-#ümardab iga mõõtmise max välja ilusaks numbriks, et saaks võtta õige korrektsiooni tabeli
+#Rounds the min/max field for each MvsH correction
 def roundFieldForCorrection(indices):
     #rounds the magnetic field to a nice number (100041.221 -> 100000)
     values = []
@@ -313,7 +286,7 @@ def roundFieldForCorrection(indices):
         
     return values
 
-#otsib vastava max välja järgi õiged korrektsiooni tabelid
+
 def searchCorrectionTable(folder_path, number):
     #searches for the right table based on the value in the title and returns the filepath
     
@@ -328,14 +301,14 @@ def searchCorrectionTable(folder_path, number):
         
     return None
 
-correction_folder_path = os.path.join(USER_PATH,'PdCorrection tables')
+CORRECTION_FOLDER_PATH = os.path.join(USER_PATH,'PdCorrection tables')
 
 def CorrectionTableToDict(numbers_to_search):
-    #returns the corresponding amount of error tables for each unique value in a dictionary form with the key being the value the table is for
+    #returns the corresponding amount of error tables for each unique min/max measurement value in a dictionary form with the key being the value the table is for
     error_tables = {}
     
     for nr in numbers_to_search:
-        error_table_path = searchCorrectionTable(correction_folder_path, nr)
+        error_table_path = searchCorrectionTable(CORRECTION_FOLDER_PATH, nr)
         
         if error_table_path is None:
             print(f"{nr} Oe jaoks ei leia parandustabelit ")
@@ -694,7 +667,7 @@ def addParameterColumns(separated, type_string):
     susceptibility = "Susceptibility (emu/g Oe)"
     oneOverSusceptibility = "1/Susceptibility"
     
-    volume = SAMPLE_AREA_CM2*THICKNESS if SAMPLE_AREA_CM2 or THICKNESS else None
+    volume = SAMPLE_AREA_CM2*THICKNESS if SAMPLE_AREA_CM2 and THICKNESS else None
     
     for pair in separated:
         
@@ -736,7 +709,7 @@ def appendAndSave(dictionary, dType):
     return None
 #-------------- Actually Run the program here -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-
+#!!!
 # Ask user input to get a path to datafile
 DATAFILE_PATH = askNewDatafilePath()
 save_to_path = os.path.dirname(DATAFILE_PATH)
@@ -763,6 +736,7 @@ SAMPLE_MASS_g = getMassInGrams(HEADER)
 SAMPLE_AREA_CM2 = getAreaCM2(HEADER)
 THICKNESS = getThickness(HEADER)
 
+
 #Color list for color idx and initializing the starting color idx with just black
 COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange"]
 ORIGINAL_DATAFRAME["color"] = "black"
@@ -770,7 +744,7 @@ ORIGINAL_DATAFRAME["color"] = "black"
 print("_________chechMeasurementType2-----------")  #mis peaks olema selle funktsiooni ebaõnnestumise/veateade? return None? või lihtsalt kaks tühja Seriet?
 # Tagastab kaks Pandas.Seriest: temperatures_of_interest, magnetic_fields_of_interest
 # edasi peaks veel kontrollima välja filtreerima üksikud punktid mis ei kuulu MvsH ja MvsT andmete hulka
-TYPE_TOKEN, TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST= checkMeasurementType2(ORIGINAL_DATAFRAME)
+TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST= checkMeasurementType2(ORIGINAL_DATAFRAME)
 #print(TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST)
 print("_________end-----------")
 

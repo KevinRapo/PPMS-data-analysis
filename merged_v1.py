@@ -304,7 +304,7 @@ def searchCorrectionTable(folder_path, number):
 CORRECTION_FOLDER_PATH = os.path.join(USER_PATH,'PdCorrection tables')
 
 def CorrectionTableToDict(numbers_to_search):
-    #returns the corresponding amount of error tables for each unique min/max measurement value in a dictionary form with the key being the value the table is for
+    #returns the corresponding amount of correction tables for each unique min/max measurement value in a dictionary form with the key being the value the table is for
     error_tables = {}
     
     for nr in numbers_to_search:
@@ -330,7 +330,7 @@ def interpolateTrueField(magnetic_field_values, error_table_measurements):
     return true_field_interpolated
 
 def interpolateMvsH(separated_MvsH, error_tables):
-    #replaces the old field values with the correct interpolated value
+    #Adds the true field values column to the existing measurement dataframes
     
     interpolated_dict = {}
     for val_pair in separated_MvsH:
@@ -355,8 +355,6 @@ def interpolateMvsH(separated_MvsH, error_tables):
                     interpolated_dict[key] = []
                     
                 interpolated_dict[key].append(interpolated) #algul oli üks tab edasi
-            #else:
-                #print(f"{key} ei kuku {max_val} vahemikku")
                 
     return interpolated_dict
 
@@ -376,31 +374,30 @@ def plotMvsH(raamat, const_T_values, interpolated_MvsH, MvsH_indices):
             colorIdx = df[0].iloc[0].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
-            H3 = df[0]["True Field (Oe)"]
-            H4 = df[1]["True Field (Oe)"]   
-            
-            ax.plot(H3, M1, color = Color, label = "True Field Descending", alpha = 0.5)
-            ax.plot(H4, M2, color = Color, label = "True Field Ascending")
+            H1_true = df[0]["True Field (Oe)"]
+            H2_true = df[1]["True Field (Oe)"]   
             
             ax.plot(H1 ,M1, color = "grey", label = "Descending") 
             ax.plot(H2, M2, color = "grey", label = "Ascending")
+            ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
+            ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
             
-            val = int(key1)
+            const_val = int(key1)
             
-            plot_title = f"M vs H at {val} K"
+            plot_title = f"M vs H at {const_val} K"
             ax.set_title(plot_title)
             ax.set_xlabel("Magnetic field (Oe)")
             ax.set_ylabel("Moment (emu)")
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
             ax.grid(True)
             #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
-            fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{val}K.png'),bbox_inches = "tight", dpi = 200) #PC
+            fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K.png'),bbox_inches = "tight", dpi = 200) #PC
             plt.show()
         
     return None
 #-----------------------------MvsT specific functions--------------------------------
 
-#const väärtuste põhjal mõõtmise punktid võtab
+#Measurement indices based on the const H values
 def getMeasurementMvsT(const_H_values):
     #Saves all the indices of the points that are equal to the predetermined H value
     row_indices = []
@@ -415,10 +412,7 @@ def getMeasurementMvsT(const_H_values):
 
 def plotMvsT(raamat, const_H_values, MvsT_indices):
     #Plots the MvsT measurement pair with different colors
-
-    # ascending_color = ""
-    # descending_color = ""
-    
+   
     for key in raamat:
         
         for df in raamat[key]:
@@ -446,8 +440,7 @@ def plotMvsT(raamat, const_H_values, MvsT_indices):
 
 #---------------------------------------Universal functions that both paths use----------------------------------------------
 
-#eraldab kõik järjestikku kasvavad indeksid ja siis väljastab kõige pikema vahemiku,
-#kõige pikem vahemik on mõõtmine ise
+#Separates all the series in the indices that grow by one and returns the longest one, that one being the measurement indices
 def filterMeasurementIndices(unfiltered_indices):
     filtered = []
     
@@ -473,7 +466,7 @@ def filterMeasurementIndices(unfiltered_indices):
     
     return filtered
 
-#otsib mingi series'e lokaalsed ekstreemumid hilisemaks eraldamiseks
+#Returns the separation indices for ascending and descending points based on the extrema
 def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
@@ -523,23 +516,23 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
         
     return min_indices, max_indices
 
-#Võtab originaalsest tabelist vastavale mõõtmisele vastavad punktid ja edastab need separationIndexForSingleSeries
-#funktsioonile eraldamiseks
+# Iterates the functionality of separationIndexForSingleSeries 
 def separationIndexForMultipleSeries(indices, column_name):
-    series = []
+    indices_for_separation = []
     
-    for index in indices:
+    for measurement_index in indices:
         
-        filtered = ORIGINAL_DATAFRAME[column_name].loc[index]
-        separation_index = separationIndexForSingleSeries(filtered, column_name)
-        series.append(separation_index)
+        measurement = ORIGINAL_DATAFRAME[column_name].loc[measurement_index]
+        separation_indices = separationIndexForSingleSeries(measurement, column_name)
+        indices_for_separation.append(separation_indices)
         
-    return series
+    return indices_for_separation
 
 def separateMeasurementWithColorIdx(separation_index, measurement_indices, column):
-    #Separates the points based on the index and returns the separated series in pairs with their color
-    # global separated_pair1
-    separated_pair1 = []
+    #Separates the points based on the separation indices and returns the separated series in pairs
+    #Assigns a unique color to each pair
+
+    separated_pair = []
     pair_indices = []
     
     if not isinstance(separation_index, list):
@@ -594,12 +587,12 @@ def separateMeasurementWithColorIdx(separation_index, measurement_indices, colum
                 
                 pair_indices.append(index1 + index2)
                 separated.append(sliced2)
-                separated_pair1.append(separated)
+                separated_pair.append(separated)
                 
                 COLORS.pop(0)
                 j += 1
         
-    return separated_pair1, pair_indices
+    return separated_pair, pair_indices
 
 def separateIntoDictValuePair(separated_pairs, const_val, column):
     # Creates a dict{const value the measurement was made at: measurement} 

@@ -14,7 +14,7 @@ import tkinter as tk
 from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-
+import copy
 
 USER_PATH = os.getcwd()
 
@@ -371,7 +371,7 @@ def plotMvsH(raamat, const_T_values):
             H2 = df[1]["Magnetic Field (Oe)"]
             M2 = df[1]["Moment (emu)"] 
             
-            colorIdx = df[0].iloc[0].name
+            colorIdx = df[1].iloc[1].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
             H1_true = df[0]["True Field (Oe)"]
@@ -610,8 +610,8 @@ def separateIntoDictValuePair(separated_pairs, const_val, column, token):
             
             if val_to_check == const: #or round(val_to_check) == round(const):
                 
-                print("Check", val_to_check, "Rounded", round(val_to_check))
-                print("const", const, "rounded", round(const))
+                # print("Check", val_to_check, "Rounded", round(val_to_check))
+                # print("const", const, "rounded", round(const))
                 key = const
                 
                 if key not in raamat:
@@ -682,16 +682,19 @@ def addParameterColumns(separated, type_string):
     oneOverSusceptibility_unit = "g*Oe/emu"
     
     volume = SAMPLE_AREA_CM2*THICKNESS if SAMPLE_AREA_CM2 and THICKNESS else None
-    
-    for pair in separated:
+
+    unit_row = None
+    for i ,pair in enumerate(separated):
         
-        for series in pair:
+        for j, series in enumerate(pair):
             
             if type_string == "MvsH":
                 
                 indices = series.index
                 series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
-                #unit_row = pd.DataFrame({temp: [temp_unit], field: [field_unit], }, index=['unit'])
+                unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],\
+                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],\
+                                        momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
                 
             elif type_string == "MvsT":
                 
@@ -705,9 +708,10 @@ def addParameterColumns(separated, type_string):
             series[susceptibility] = series[moment]/(SAMPLE_MASS_g*series[field]) if SAMPLE_MASS_g else None
             series[oneOverSusceptibility] = 1/(series[moment]/(SAMPLE_MASS_g*series[field])) if SAMPLE_MASS_g else None
             
-
             # Concatenate the new row DataFrame and the original DataFrame
-            #df = pd.concat([unit_row, series])
+            # pair[j] = pd.concat([unit_row, series])
+            
+        # separated[i] = pair
     return None
 
 def appendAndSave(dictionary, dType):
@@ -822,14 +826,17 @@ else:
         raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
     DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
-    
+    check = copy.deepcopy(DICT_MvsH)
     correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     INTERPOLATED_MvsH = interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
     
+    SEPARATED_MvsH_copy = copy.deepcopy(SEPARATED_MvsH)
+    
     setColumnForType(MvsH_INDICES, "MvsH")
     addParameterColumns(SEPARATED_MvsH, "MvsH")
     appendAndSave(DICT_MvsH, "MvsH")
+    
     
     plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')

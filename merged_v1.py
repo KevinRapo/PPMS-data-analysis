@@ -271,8 +271,8 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
 def roundFieldForCorrection(indices):
     #rounds the magnetic field to a nice number (100041.221 -> 100000)
     values = []
-    for indices in indices:
-        MvsH = ORIGINAL_DATAFRAME["Magnetic Field (Oe)"].loc[indices]
+    for indx in indices:
+        MvsH = ORIGINAL_DATAFRAME["Magnetic Field (Oe)"].loc[indx]
         max_range = max(MvsH)
         if max_range >= 10000:
             nr = round(max_range / 1000) * 1000
@@ -358,7 +358,7 @@ def interpolateMvsH(separated_MvsH, error_tables):
                 
     return interpolated_dict
 
-def plotMvsH(raamat, const_T_values, interpolated_MvsH, MvsH_indices):
+def plotMvsH(raamat, const_T_values):
     #Plots the MvsH measurement pair with different colors
     
     for key1 in raamat:
@@ -410,7 +410,7 @@ def getMeasurementMvsT(const_H_values):
 
     return row_indices
 
-def plotMvsT(raamat, const_H_values, MvsT_indices):
+def plotMvsT(raamat, const_H_values):
     #Plots the MvsT measurement pair with different colors
    
     for key in raamat:
@@ -467,7 +467,7 @@ def filterMeasurementIndices(unfiltered_indices):
     return filtered
 
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, n = 25): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
 
@@ -594,7 +594,7 @@ def separateMeasurementWithColorIdx(separation_index, measurement_indices, colum
         
     return separated_pair, pair_indices
 
-def separateIntoDictValuePair(separated_pairs, const_val, column):
+def separateIntoDictValuePair(separated_pairs, const_val, column, token):
     # Creates a dict{const value the measurement was made at: measurement} 
     raamat = {}
     
@@ -605,9 +605,15 @@ def separateIntoDictValuePair(separated_pairs, const_val, column):
             index_to_check = val[0].index[0]
             val_to_check = ORIGINAL_DATAFRAME[column].iloc[index_to_check]
             
-            if val_to_check == const or round(val_to_check) == round(const):
+            #Rounds the values if the measurement needs to check for MvsH, for MvsT can use direct == becasue they are precise
+            val_to_check, const = (round(val_to_check), round(const)) if token == "MvsH" else (val_to_check, const)
+            
+            if val_to_check == const: #or round(val_to_check) == round(const):
                 
+                print("Check", val_to_check, "Rounded", round(val_to_check))
+                print("const", const, "rounded", round(const))
                 key = const
+                
                 if key not in raamat:
                     raamat[key] = []  # Create an empty list for this key if it doesn't exist
                     
@@ -651,14 +657,29 @@ def setColumnForType(indices, type_string):
 def addParameterColumns(separated, type_string):
     
     temp = "Temperature (K)"
+    temp_unit = "K"
+    
     field = "Magnetic Field (Oe)"
+    field_unit = "Oe"
+    
     moment = "Moment (emu)"
+    moment_unit = "emu"
     error = "M. Std. Err. (emu)"
+    
     momentDivMass = "Moment (emu)/mass(g)"
+    momentDivMass_unit = "emu/g"
+    
     momentDivArea = "Moment (emu)/area(cm2)"
+    momentDivArea_unit = "emu/cm2"
+    
     momentDivVolume = "Moment (emu)/volume(cm3)"
+    momentDivVolume_unit = "emu/cm3"
+    
     susceptibility = "Susceptibility (emu/g Oe)"
+    susceptibility_unit = "emu/g*Oe"
+    
     oneOverSusceptibility = "1/Susceptibility"
+    oneOverSusceptibility_unit = "g*Oe/emu"
     
     volume = SAMPLE_AREA_CM2*THICKNESS if SAMPLE_AREA_CM2 and THICKNESS else None
     
@@ -670,6 +691,7 @@ def addParameterColumns(separated, type_string):
                 
                 indices = series.index
                 series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
+                #unit_row = pd.DataFrame({temp: [temp_unit], field: [field_unit], }, index=['unit'])
                 
             elif type_string == "MvsT":
                 
@@ -680,9 +702,12 @@ def addParameterColumns(separated, type_string):
             series[momentDivMass] = series[moment]/SAMPLE_MASS_g if SAMPLE_MASS_g else None
             series[momentDivArea] = series[moment]/SAMPLE_AREA_CM2 if SAMPLE_AREA_CM2 else None
             series[momentDivVolume] = series[moment]/volume if volume else None
-            series[susceptibility] = series[moment]/(SAMPLE_MASS_g*series[field]) 
-            series[oneOverSusceptibility] = 1/(series[moment]/(SAMPLE_MASS_g*series[field]))
+            series[susceptibility] = series[moment]/(SAMPLE_MASS_g*series[field]) if SAMPLE_MASS_g else None
+            series[oneOverSusceptibility] = 1/(series[moment]/(SAMPLE_MASS_g*series[field])) if SAMPLE_MASS_g else None
             
+
+            # Concatenate the new row DataFrame and the original DataFrame
+            #df = pd.concat([unit_row, series])
     return None
 
 def appendAndSave(dictionary, dType):
@@ -769,13 +794,13 @@ else:
     except IndexError as ie:
         raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
         
-    DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)")
+    DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
     
     setColumnForType(MvsT_INDICES, "MvsT")
     addParameterColumns(SEPARATED_MvsT, "MvsT")
     appendAndSave(DICT_MvsT, "MvsT")
     
-    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST, MvsT_INDICES)
+    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
@@ -796,9 +821,9 @@ else:
     except IndexError as ie:
         raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)")
+    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
     
-    correction_field_value = roundFieldForCorrection(MvsH_INDICES)
+    correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     INTERPOLATED_MvsH = interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
     
@@ -806,7 +831,7 @@ else:
     addParameterColumns(SEPARATED_MvsH, "MvsH")
     appendAndSave(DICT_MvsH, "MvsH")
     
-    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST, INTERPOLATED_MvsH, MvsH_INDICES)
+    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 

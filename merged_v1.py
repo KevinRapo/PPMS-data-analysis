@@ -14,7 +14,7 @@ import tkinter as tk
 from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-import copy
+# import copy
 
 USER_PATH = os.getcwd()
 
@@ -340,22 +340,13 @@ def interpolateMvsH(separated_MvsH, error_tables):
             if max_val - 100 <= key <= max_val + 100:
                 #print(f"{key} kukub {max_val} vahemikku")
                 
-                interpolated = []
                 for val in val_pair:
                     
                     magnetic_field_values = val["Magnetic Field (Oe)"]
                     true_field_interpolated = interpolateTrueField(magnetic_field_values, error_tables[key])
                     
                     val["True Field (Oe)"] = true_field_interpolated
-                    
-                    true_field_pd = pd.DataFrame({"True Field (Oe)": true_field_interpolated})
-                    interpolated.append(true_field_pd)
-                    
-                if key not in interpolated_dict:
-                    interpolated_dict[key] = []
-                    
-                interpolated_dict[key].append(interpolated) #algul oli üks tab edasi
-                
+                                
     return interpolated_dict
 
 def plotMvsH(raamat, const_T_values):
@@ -639,6 +630,8 @@ def plotMeasurementTimeseries():
     axes[2].set_ylabel("Magnetic Field (Oe)")
     axes[-1].set_xlabel("Time Stamp (sec)")
     
+    fig.savefig(os.path.join(folder_name,'timeseries.png'),bbox_inches = "tight", dpi = 200)
+    
     # Show the plot
     plt.show()
     
@@ -700,6 +693,9 @@ def addParameterColumns(separated, type_string):
                 
                 indices = series.index
                 series[field] = ORIGINAL_DATAFRAME.loc[indices, field]
+                unit_row = pd.DataFrame({ temp: [temp_unit], moment: [moment_unit], field: [field_unit],\
+                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],\
+                                        momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
                 
             series[error] = ORIGINAL_DATAFRAME.loc[indices, error]
             series[momentDivMass] = series[moment]/SAMPLE_MASS_g if SAMPLE_MASS_g else None
@@ -709,9 +705,10 @@ def addParameterColumns(separated, type_string):
             series[oneOverSusceptibility] = 1/(series[moment]/(SAMPLE_MASS_g*series[field])) if SAMPLE_MASS_g else None
             
             # Concatenate the new row DataFrame and the original DataFrame
-            # pair[j] = pd.concat([unit_row, series])
+            pair[j] = pd.concat([unit_row, series])
             
-        # separated[i] = pair
+        separated[i] = pair
+        
     return None
 
 def appendAndSave(dictionary, dType):
@@ -800,13 +797,15 @@ else:
         
     DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
     
+    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
+    
     setColumnForType(MvsT_INDICES, "MvsT")
     addParameterColumns(SEPARATED_MvsT, "MvsT")
     appendAndSave(DICT_MvsT, "MvsT")
     
-    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
+
 
 if TEMPERATURES_OF_INTEREST.size <= 0:
     print('no MvsH detected')
@@ -825,22 +824,26 @@ else:
     except IndexError as ie:
         raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
-    check = copy.deepcopy(DICT_MvsH)
+    
     correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
-    INTERPOLATED_MvsH = interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
     
-    SEPARATED_MvsH_copy = copy.deepcopy(SEPARATED_MvsH)
+    interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
+    
+    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
+    # DICT_MvsH_copy = copy.deepcopy(DICT_MvsH) #copy for plotting before adding all other columns and unit row
+    
+    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
     
     setColumnForType(MvsH_INDICES, "MvsH")
+    
+    
     addParameterColumns(SEPARATED_MvsH, "MvsH")
     appendAndSave(DICT_MvsH, "MvsH")
     
-    
-    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
+
 
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')

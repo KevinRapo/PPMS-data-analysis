@@ -195,6 +195,7 @@ moment = get_M(data_measurements, token)
 
 #-----------------This part finds the constant temperatures from the data (MvsH)-------------------
 
+<<<<<<< Updated upstream
 #ON VAJA VEEL TEISI KONTROLLE SELLEKS KUI ANDMETES ON AINULT ÜHTE TÜÜPI MÕÕTMISED
 
 def min_max_range(data):
@@ -203,6 +204,16 @@ def min_max_range(data):
     start = min(data)
     stop = max(data)+0.5
     step = 0.2
+=======
+def min_max_range(data, step = 0.2):
+    #min and max value for temperature range
+    #divides the temperature range into intervals for temperature distribution in the data
+   # start = min(data)
+    #stop = max(data)+0.5
+    start = 1.7
+    stop = 1000
+    #step = 0.15 #0.2 oli error selle failiga DataToTest/7_TbMn0p2Ga3_VSM_DC_Hys_300K_50K_30K_2K_01112022, kaks kõrvuti vahemikku ületasid nivoo
+>>>>>>> Stashed changes
     values = []
     current_value = start
     
@@ -592,4 +603,252 @@ plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH)
 
   
 
+#MEASUREMENT_TABLE[codes_T ==3]
+#uniques_T.size
+#codes_T ==0
 
+<<<<<<< Updated upstream
+=======
+def data_check(MEASUREMENT_TABLE, RATIO_LEVEL = 0.07):
+    #Checks what measurements the file contains
+    
+    global uniques_T,uniques_H,codes_T
+    
+    type_token = {"Temperature": None, "Field": None}
+    
+    dataset_T = MEASUREMENT_TABLE["Temperature (K)"]
+    dataset_H = MEASUREMENT_TABLE["Magnetic Field (Oe)"]
+      
+    smoothed_dataset_T = dataset_T.round(decimals=1)
+    smoothed_dataset_H = dataset_H.round(decimals=1)
+    
+    
+    codes_T, uniques_T = pd.factorize(smoothed_dataset_T)
+    codes_H, uniques_H = pd.factorize(smoothed_dataset_H)
+    
+    ratio_T = uniques_T.size/smoothed_dataset_T.size
+    ratio_H = uniques_H.size/smoothed_dataset_H.size
+    
+
+    
+    if ratio_T < RATIO_LEVEL: #discrete
+    
+        if ratio_H < RATIO_LEVEL: #discrete
+        
+            type_token["Temperature"] = "discrete"
+            type_token["Field"] = "discrete"
+            print("T discrete, H discrete = error \n")
+            
+            return type_token
+        
+        else: #continous
+        
+            type_token["Temperature"] = "discrete"
+            type_token["Field"] = "continous"
+            print("T discrete, H continous = MvsH \n")
+            
+            return type_token
+            
+    else: #continous
+    
+        if ratio_H < RATIO_LEVEL: #discrete
+        
+            type_token["Temperature"] = "continous"
+            type_token["Field"] = "discrete"
+            print("T continous, H discrete = MvsT \n")
+            
+            return type_token
+        
+        else: #continous
+        
+            type_token["Temperature"] = "continous"
+            type_token["Field"] = "continous"
+            print("T continous, H continous = both \n")
+            
+            return type_token
+
+type_token = data_check(MEASUREMENT_TABLE)
+
+def MvsH_solo(MEASUREMENT_TABLE):
+    
+    global ranges_temp, intervals_temp, const_T_interval, const_T_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
+        MvsH_indices, separated_MvsH_indices, separated_MvsH
+        
+    ranges_temp = min_max_range(TEMPERATURE)
+    intervals_temp = TEMPERATURE.groupby(pd.cut(TEMPERATURE, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
+    #print(intervals)
+    const_T_interval = mood_temp_for_MvsH(intervals_temp)
+    const_T_values = get_const_temp(const_T_interval)
+    
+    #SIIN VAATA filtered_values üle, äkki saad hiljem kasutada
+    unfiltered_MvsH_T_values, unfiltered_MvsH_indices = get_measurement_MvsH(const_T_values)
+    MvsH_indices = filter_measurement_MvsH(unfiltered_MvsH_indices)
+    
+    #!!! vb siia ka separation_index_for_series panna
+    separated_MvsH_indices = separate_MvsH_index(MEASUREMENT_TABLE, MvsH_indices) #the indices where the separation is going to be done
+    separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
+    
+    return separated_MvsH, MvsH_indices, const_T_values
+
+# def MvsH_duo(MEASUREMENT_TABLE): # EI KASUTA HETKEL
+    
+#     ranges_temp = min_max_range(temperature)
+#     intervals = temperature.groupby(pd.cut(temperature, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
+    
+#     const_T_interval = mood_temp_for_both(intervals)
+#     const_T_values = get_const_temp(const_T_interval)
+    
+#     #SIIN VAATA filtered_values üle, äkki saad hiljem kasutada
+#     unfiltered_MvsH_T_values, unfiltered_MvsH_indices = get_measurement_MvsH(const_T_values)
+#     MvsH_indices = filter_measurement_MvsH(unfiltered_MvsH_indices)
+    
+#     separated_MvsH_indices = separate_MvsH_index(MEASUREMENT_TABLE, MvsH_indices) #the indices where the separation is going to be done
+#     separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
+    
+#     return separated_MvsH, MvsH_indices, const_T_values
+
+def MvsT_solo(MEASUREMENT_TABLE):
+    global H_count, const_H_values, MvsT_indices, separated_MvsT_indices, separated_MvsT
+    
+    H_count = MAGNETIC_FIELD.value_counts()
+    const_H_values = get_const_M_for_MvsT(H_count)
+    
+    MvsT_indices = get_measurement_MvsT(const_H_values)
+    separated_MvsT_indices = separation_index_for_series(MEASUREMENT_TABLE, "Temperature (K)")# the indices where the separation is going to be done
+    separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
+    
+    return separated_MvsT, MvsT_indices, const_H_values
+
+# def MvsT_duo(MEASUREMENT_TABLE): #EI KASUTA HETKEL
+    
+#     H_count = magnetic_field.value_counts()
+#     const_H_values = get_const_M_for_both(H_count)
+    
+#     MvsT_indices = get_measurement_MvsT(const_H_values)
+#     separated_MvsT_indices = separate_MvsT_index_for_both(MEASUREMENT_TABLE, "Temperature (K)")# the indices where the separation is going to be done
+#     separated_MvsT = separate_MvsT(separated_MvsT_indices, MvsT_indices)
+    
+#     return separated_MvsT, MvsT_indices, const_H_values
+
+
+
+def what_path_main(type_token, MEASUREMENT_TABLE):
+    
+    # global ranges_temp, intervals_temp, const_T_interval, const_T_values, H_count, const_H_values, unfiltered_MvsH_T_values, unfiltered_MvsH_indices,\
+    #     MvsH_indices, MvsT_indices, separated_MvsT_indices, separated_MvsT, separated_MvsH_indices, separated_MvsH, min_max_MvsH_val, error_tables,\
+    #     interpolated_MvsH
+        
+    if type_token["Temperature"] == "discrete" and type_token["Field"] == "continous":
+        print("\n Kas jõudis MvsH algusesse?")
+        # global interpolated_MvsH, separated_MvsH, MvsH_indices, const_T_values
+        
+        separated_MvsH, MvsH_indices, const_T_values = MvsH_solo(MEASUREMENT_TABLE)
+        
+        min_max_MvsH_val = round_H(MvsH_indices) #Magnetic field value indicating the +- field value
+        error_tables = nr_to_dict(min_max_MvsH_val)
+        print("\n Kas jõudis MvsH keskele?")
+        interpolated_MvsH = interpolate_MvsH(separated_MvsH, error_tables)
+        
+        plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH)
+        
+        print("\n Kas jõudis MvsH lõppu?")
+        
+        return separated_MvsH, MvsH_indices, const_T_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA
+    
+    elif type_token["Temperature"] == "continous" and type_token["Field"] == "discrete":
+        
+        
+        separated_MvsT, MvsT_indices, const_H_values = MvsT_solo(MEASUREMENT_TABLE)
+        raamat = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
+        
+        plot_MvsT(raamat, MvsT_indices, const_H_values)
+        
+        print("\n Kas jõudis MvsT lõppu?")
+        
+        return separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA
+                
+    
+    elif type_token["Temperature"] == "continous" and type_token["Field"] == "continous":#!!!
+
+        #This part finds the constant temperatures from the data (MvsH)
+        ranges_temp = min_max_range(TEMPERATURE)
+        intervals_temp = TEMPERATURE.groupby(pd.cut(TEMPERATURE, ranges_temp)).count()#Groups the temperatures based on the range and returns the count of each range
+        const_T_interval = mood_temp_for_both(intervals_temp)
+        const_T_values = get_const_temp(const_T_interval)
+        
+        #This part finds the constant magnetic field from the data (MvsT)
+        H_count = MAGNETIC_FIELD.value_counts()
+        const_H_values = get_const_M_for_both(H_count)
+        
+        #Filtering const temp points from the data for MvsH
+        unfiltered_MvsH_T_values, unfiltered_MvsH_indices = get_measurement_MvsH(const_T_values)
+        MvsH_indices = filter_measurement_MvsH(unfiltered_MvsH_indices)
+        
+        #Filtering const H points from the data for MvsT
+        MvsT_indices = get_measurement_MvsT(const_H_values)
+        
+        #Separating MvsT measurements
+        separated_MvsT_indices = separate_MvsT_index_for_both(MEASUREMENT_TABLE, MvsT_indices)# the indices where the separation is going to be done
+        separated_MvsT = separate_MvsT_for_both(separated_MvsT_indices, MvsT_indices)
+        raamat = separated_into_dict_pair(separated_MvsT, const_H_values, "Magnetic Field (Oe)")
+        
+        #Separating MvsH measurements
+        separated_MvsH_indices = separate_MvsH_index(MEASUREMENT_TABLE, MvsH_indices) #the indices where the separation is going to be done
+        separated_MvsH = separate_MvsH(separated_MvsH_indices, MvsH_indices)
+        
+        #MvsH correction
+        min_max_MvsH_val = round_H(MvsH_indices) #Magnetic field value indicating the +- field value
+        error_tables = nr_to_dict(min_max_MvsH_val)
+        interpolated_MvsH = interpolate_MvsH(separated_MvsH, error_tables)
+        
+        #Plots
+        plot_MvsH(separated_MvsH, const_T_values, interpolated_MvsH)
+        plot_MvsT(raamat, MvsT_indices, const_H_values)
+        
+        print("\n Kas jõudis duo lõppu?")
+
+        return separated_MvsH, MvsH_indices, const_T_values, separated_MvsT, MvsT_indices, const_H_values #HETKEL OUTPUT SELLEKS, ET SAAKS MUUTUJAID JÄLGIDA, ÜTLE SINA MIS SEE TEGELT TAGASTADA VÕIKS
+    
+what_path_main(type_token, MEASUREMENT_TABLE)
+
+#!!! PS
+
+""" -----------------MIDA VAJA PARANDADA VEEL------------
+
+1. plottimise juures selgus, et nan väärtused võivad olla, need asendada
+2.
+
+"""
+
+#-----------------------DIVIDING MEASUREMENTS BY SAMPLE SIZE--------------------------------------
+
+# def calc_volume(size, thickness):
+#     if size is None or thickness is None:
+#         return None
+#     volume = size*thickness
+#     return volume
+
+# volume = calc_volume(size, thickness)
+
+# def Moment_divided_mass(moment, mass):
+#     if mass is None:
+#         return None
+#     M_divided_mass = moment/mass
+#     return M_divided_mass
+
+# def Moment_divided_size(moment, size):
+#     if size is None:
+#         return None
+#     M_divided_size = moment/size
+#     return M_divided_size
+
+# def Moment_divided_volume(moment, volume):
+#     if volume is None:
+#         return None
+#     M_divided_volume = moment/volume
+#     return M_divided_volume
+
+# M_div_mass = Moment_divided_mass(moment,mass)
+# M_div_size = Moment_divided_size(moment, size)
+# M_div_volume = Moment_divided_volume(moment, volume)
+>>>>>>> Stashed changes

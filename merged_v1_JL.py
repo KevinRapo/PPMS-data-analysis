@@ -15,7 +15,7 @@ from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 import glob
-
+# import copy
 
 USER_PATH = os.getcwd()
 
@@ -341,22 +341,13 @@ def interpolateMvsH(separated_MvsH, error_tables):
             if max_val - 100 <= key <= max_val + 100:
                 #print(f"{key} kukub {max_val} vahemikku")
                 
-                interpolated = []
                 for val in val_pair:
                     
                     magnetic_field_values = val["Magnetic Field (Oe)"]
                     true_field_interpolated = interpolateTrueField(magnetic_field_values, error_tables[key])
                     
                     val["True Field (Oe)"] = true_field_interpolated
-                    
-                    true_field_pd = pd.DataFrame({"True Field (Oe)": true_field_interpolated})
-                    interpolated.append(true_field_pd)
-                    
-                if key not in interpolated_dict:
-                    interpolated_dict[key] = []
-                    
-                interpolated_dict[key].append(interpolated) #algul oli üks tab edasi
-                
+                                
     return interpolated_dict
 
 def plotMvsH(raamat, const_T_values):
@@ -372,16 +363,17 @@ def plotMvsH(raamat, const_T_values):
             H2 = df[1]["Magnetic Field (Oe)"]
             M2 = df[1]["Moment (emu)"] 
             
-            colorIdx = df[0].iloc[0].name
+            colorIdx = df[1].iloc[1].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
             H1_true = df[0]["True Field (Oe)"]
             H2_true = df[1]["True Field (Oe)"]   
+            ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
+            ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
             
             ax.plot(H1 ,M1, color = "grey", label = "Descending") 
             ax.plot(H2, M2, color = "grey", label = "Ascending")
-            ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
-            ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
+            
             
             const_val = int(key1)
             
@@ -393,7 +385,6 @@ def plotMvsH(raamat, const_T_values):
             ax.grid(True)
             #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
             fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K.png'),bbox_inches = "tight", dpi = 200) #PC
-            
             plt.show()
         
     return None
@@ -417,12 +408,9 @@ def plotMvsT(raamat, const_H_values):
    
     for key in raamat:
         fig, ax = plt.subplots()
-        i=1
         for df in raamat[key]:
-            print(key)
-            print(i)
-            i=i+1
-            # fig, ax = plt.subplots()
+
+            
             T1 = df[0]["Temperature (K)"]
             M1 = df[0]["Moment (emu)"]
             T2 = df[1]["Temperature (K)"] if len(df) > 1 else None
@@ -615,8 +603,8 @@ def separateIntoDictValuePair(separated_pairs, const_val, column, token):
             
             if val_to_check == const: #or round(val_to_check) == round(const):
                 
-                print("Check", val_to_check, "Rounded", round(val_to_check))
-                print("const", const, "rounded", round(const))
+                # print("Check", val_to_check, "Rounded", round(val_to_check))
+                # print("const", const, "rounded", round(const))
                 key = const
                 
                 if key not in raamat:
@@ -643,6 +631,8 @@ def plotMeasurementTimeseries():
     axes[1].set_ylabel("Moment (emu)")
     axes[2].set_ylabel("Magnetic Field (Oe)")
     axes[-1].set_xlabel("Time Stamp (sec)")
+    
+    fig.savefig(os.path.join(folder_name,'timeseries.png'),bbox_inches = "tight", dpi = 200)
     
     # Show the plot
     plt.show()
@@ -687,21 +677,27 @@ def addParameterColumns(separated, type_string):
     oneOverSusceptibility_unit = "g*Oe/emu"
     
     volume = SAMPLE_AREA_CM2*THICKNESS if SAMPLE_AREA_CM2 and THICKNESS else None
-    
-    for pair in separated:
+
+    unit_row = None
+    for i ,pair in enumerate(separated):
         
-        for series in pair:
+        for j, series in enumerate(pair):
             
             if type_string == "MvsH":
                 
                 indices = series.index
                 series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
-                #unit_row = pd.DataFrame({temp: [temp_unit], field: [field_unit], }, index=['unit'])
+                unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],\
+                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],\
+                                        momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
                 
             elif type_string == "MvsT":
                 
                 indices = series.index
                 series[field] = ORIGINAL_DATAFRAME.loc[indices, field]
+                unit_row = pd.DataFrame({ temp: [temp_unit], moment: [moment_unit], field: [field_unit],\
+                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],\
+                                        momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
                 
             series[error] = ORIGINAL_DATAFRAME.loc[indices, error]
             series[momentDivMass] = series[moment]/SAMPLE_MASS_g if SAMPLE_MASS_g else None
@@ -710,11 +706,12 @@ def addParameterColumns(separated, type_string):
             series[susceptibility] = series[moment]/(SAMPLE_MASS_g*series[field]) if SAMPLE_MASS_g else None
             series[oneOverSusceptibility] = 1/(series[moment]/(SAMPLE_MASS_g*series[field])) if SAMPLE_MASS_g else None
             
-
             # Concatenate the new row DataFrame and the original DataFrame
-            #df = pd.concat([unit_row, series])
+            pair[j] = pd.concat([unit_row, series])
+            
+        separated[i] = pair
+        
     return None
-
 
 def appendAndSave(dictionary, dType):
     
@@ -727,10 +724,6 @@ def appendAndSave(dictionary, dType):
             file_name = f'{dType}_data_at_{key}.csv'
             
             full_path = os.path.join(folder_name, file_name)
-            
-            # result.to_csv(full_path, index = False)
-            
-
             
             # Use this function to search for any files which match your filename
             files_present = glob.glob(full_path)
@@ -754,9 +747,6 @@ def appendAndSave(dictionary, dType):
                         NewFileCreated = False
                     else:
                         counter = counter + 1
-                    
-                
-                    
             
     return None
 #-------------- Actually Run the program here -------------------------------------------------------------------
@@ -829,15 +819,16 @@ else:
         raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
         
     DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
-
+    
+    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
     
     setColumnForType(MvsT_INDICES, "MvsT")
     addParameterColumns(SEPARATED_MvsT, "MvsT")
     appendAndSave(DICT_MvsT, "MvsT")
     
-    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
+
 
 if TEMPERATURES_OF_INTEREST.size <= 0:
     print('no MvsH detected')
@@ -856,19 +847,26 @@ else:
     except IndexError as ie:
         raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
     
     correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
-    INTERPOLATED_MvsH = interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
+    
+    interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
+    
+    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
+    # DICT_MvsH_copy = copy.deepcopy(DICT_MvsH) #copy for plotting before adding all other columns and unit row
+    
+    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
     
     setColumnForType(MvsH_INDICES, "MvsH")
+    
+    
     addParameterColumns(SEPARATED_MvsH, "MvsH")
     appendAndSave(DICT_MvsH, "MvsH")
     
-    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
+
 
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')

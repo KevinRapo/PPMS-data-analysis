@@ -408,6 +408,7 @@ def plotMvsT(raamat, const_H_values):
    
     for key in raamat:
         fig, ax = plt.subplots()
+        i_pair = 1
         for df in raamat[key]:
 
             
@@ -419,13 +420,14 @@ def plotMvsT(raamat, const_H_values):
             colorIdx = df[0].iloc[0].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
-            ax.plot(T1,M1,color = Color, label = "Ascending", alpha = 0.5) # peaks tegelt kontrollima kas kasvab või kahaneb
-            ax.plot(T2,M2,color = Color, label = "Descending") if len(df) > 1 else None #, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
+            ax.plot(T1,M1,color = Color, label = f"Ascending {i_pair}", alpha = 0.5) # peaks tegelt kontrollima kas kasvab või kahaneb
+            ax.plot(T2,M2,color = Color, label = f"Descending {i_pair}") if len(df) > 1 else None #, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
             ax.set_title(f"M vs T at {key} Oe")
             ax.set_xlabel("Temperature (K)")
             ax.set_ylabel("Moment (emu)")
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
             ax.grid(True)
+            i_pair = i_pair + 1
         fig.savefig(os.path.join(folder_name,f'MvsT_graph_at_{key}K.png'),bbox_inches = "tight", dpi = 200)
         plt.show()
         
@@ -714,39 +716,47 @@ def addParameterColumns(separated, type_string):
     return None
 
 def appendAndSave(dictionary, dType):
+    i_key = 1
     
     for key in dictionary:
-        
+        print("i_key")
+        print(i_key)
+        i_key = i_key + 1
+        i_pair = 1
         for pair in dictionary[key]:
+            print("i_pair")
+            print(i_pair)
             
             result = pd.concat([pair[0], pair[1]])
             
-            file_name = f'{dType}_data_at_{key}.csv'
+            file_name = f'{dType}_data_at_{key}_{i_pair}.csv'
             
             full_path = os.path.join(folder_name, file_name)
             
             # Use this function to search for any files which match your filename
             files_present = glob.glob(full_path)
             
+            result.to_csv(full_path, index = False)
             
-            # if no matching files, write to csv, if there are matching files, print statement
-            if not files_present:
-                result.to_csv(full_path, index = False)
-            else:
-                counter = 1
-                NewFileCreated=True
-                while NewFileCreated :
-                    full_path = os.path.join(full_path, str(counter))
-                    file_name = f'{dType}_data_at_{key}_{counter}.csv'
+            i_pair = i_pair + 1
+            # # if no matching files, write to csv, if there are matching files, print statement
+            # if not files_present:
+            #     result.to_csv(full_path, index = False)
+            # else:
+            #     counter = 1
+            #     NewFileCreated=True
+            #     while NewFileCreated :
+            #         full_path = os.path.join(full_path, str(counter))
+            #         file_name = f'{dType}_data_at_{key}_{counter}.csv'
                     
-                    full_path = os.path.join(folder_name, file_name)
+            #         full_path = os.path.join(folder_name, file_name)
                     
-                    files_present = glob.glob(full_path)
-                    if not files_present:
-                        result.to_csv(full_path, index = False)
-                        NewFileCreated = False
-                    else:
-                        counter = counter + 1
+            #         files_present = glob.glob(full_path)
+            #         if not files_present:
+            #             result.to_csv(full_path, index = False)
+            #             NewFileCreated = False
+            #         else:
+            #             counter = counter + 1
             
     return None
 #-------------- Actually Run the program here -------------------------------------------------------------------

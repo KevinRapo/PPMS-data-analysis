@@ -15,6 +15,7 @@ from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 import glob
+import math
 # import copy
 
 USER_PATH = os.getcwd()
@@ -765,6 +766,27 @@ def appendAndSave(dictionary, dType):
             #             counter = counter + 1
             
     return None
+#---------------Measurement errors----------------------------
+
+def BTypeMeasurementError(measurement_deviation):
+    StudentFactor = 2 #Inf, reliability = 0.95
+    formula = (StudentFactor/3)*measurement_deviation
+    return formula
+
+def momentDivDimensionUncertaintyError(separated, dimension, measurement_deviation):
+    
+    for pair in separated:
+        
+        for df in pair:
+            
+            momentStdError = df["M. Std. Err. (emu)"].iloc[1:]
+            moment = df["Moment (emu)"].iloc[1:]
+            # momentDivMassError = math.sqrt(((1/SAMPLE_MASS_g)*momentStdError)**2+((-moment/SAMPLE_MASS_g**2)*momentStdError)**2)
+            momentDivMassError = (((1/dimension)*momentStdError)**2 + \
+                                  ((-moment/dimension**2)*measurement_deviation)**2)**0.5
+            df["Error test"] = momentDivMassError
+    return None
+
 #-------------- Actually Run the program here -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 #!!!
@@ -890,18 +912,10 @@ if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
 
 #Plots temp, field and moment against time
 plotMeasurementTimeseries()
+     
+#Error       
+momentDivDimensionUncertaintyError(SEPARATED_MvsH,, 0.0001) #for moment/mass uncertainty
 
-def uncertaintyError(separated):
-    
-    for pair in separated:
-        
-        for df in pair:
-            
-            momentStdError = df["Std. Err. (emu"].iloc[1:]
-            
-    return None
-            
-            
 # #creates a column "Type" for each data point type
 # ORIGINAL_DATAFRAME["Type"] = ""
 # setColumnForType(MvsT_INDICES, "MvsT")

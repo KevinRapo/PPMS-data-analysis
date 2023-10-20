@@ -368,10 +368,12 @@ def plotMvsH(raamat, const_T_values):
             colorIdx = df[0].iloc[1].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
-            # H1_true = df[0]["True Field (Oe)"]
-            # H2_true = df[1]["True Field (Oe)"]   
-            # ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
-            # ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
+            if "True Field (Oe)" in df[0]:
+                
+                H1_true = df[0]["True Field (Oe)"]
+                H2_true = df[1]["True Field (Oe)"]   
+                ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
+                ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
             
             ax.plot(H1 ,M1, color = "grey", label = "Descending") 
             ax.plot(H2, M2, color = "grey", label = "Ascending")
@@ -722,8 +724,8 @@ def appendAndSave(dictionary, dType):
     i_key = 1
     
     for key in dictionary:
-        print("i_key")
-        print(i_key)
+        # print("i_key")
+        # print(i_key)
         i_key = i_key + 1
         i_pair = 1
         for pair in dictionary[key]:
@@ -736,12 +738,13 @@ def appendAndSave(dictionary, dType):
             
             full_path = os.path.join(folder_name, file_name)
             
-            # Use this function to search for any files which match your filename
-            files_present = glob.glob(full_path)
-            
             result.to_csv(full_path, index = False)
             
             i_pair = i_pair + 1
+            
+            # # Use this function to search for any files which match your filename
+            # files_present = glob.glob(full_path)
+            
             # # if no matching files, write to csv, if there are matching files, print statement
             # if not files_present:
             #     result.to_csv(full_path, index = False)
@@ -836,7 +839,7 @@ else:
     plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
     
     setColumnForType(MvsT_INDICES, "MvsT")
-    addParameterColumns(SEPARATED_MvsT, "MvsT")
+    addParameterColumns(SEPARATED_MvsT, "MvsT")#this function modifies SEPARATED_MvsT which inturn modifies DICT_MvsT since it's a global mutable variable
     appendAndSave(DICT_MvsT, "MvsT")
     
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
@@ -873,9 +876,7 @@ else:
     plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
     
     setColumnForType(MvsH_INDICES, "MvsH")
-    
-    
-    addParameterColumns(SEPARATED_MvsH, "MvsH")
+    addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
     appendAndSave(DICT_MvsH, "MvsH")
     
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
@@ -890,6 +891,17 @@ if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
 #Plots temp, field and moment against time
 plotMeasurementTimeseries()
 
+def uncertaintyError(separated):
+    
+    for pair in separated:
+        
+        for df in pair:
+            
+            momentStdError = df["Std. Err. (emu"].iloc[1:]
+            
+    return None
+            
+            
 # #creates a column "Type" for each data point type
 # ORIGINAL_DATAFRAME["Type"] = ""
 # setColumnForType(MvsT_INDICES, "MvsT")

@@ -914,7 +914,7 @@ if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
 plotMeasurementTimeseries()
      
 #Error       
-momentDivDimensionUncertaintyError(SEPARATED_MvsH,, 0.0001) #for moment/mass uncertainty
+momentDivDimensionUncertaintyError(SEPARATED_MvsH, SAMPLE_MASS_g, 0.0001) #for moment/mass uncertainty
 
 # #creates a column "Type" for each data point type
 # ORIGINAL_DATAFRAME["Type"] = ""

@@ -355,6 +355,8 @@ def plotMvsH(raamat, const_T_values):
     
     for key1 in raamat:
         
+        i_pair = 1
+        
         for df in raamat[key1]:
             
             fig, ax = plt.subplots()
@@ -384,7 +386,8 @@ def plotMvsH(raamat, const_T_values):
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
             ax.grid(True)
             #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
-            fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K.png'),bbox_inches = "tight", dpi = 200) #PC
+            fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K_{i_pair}.png'),bbox_inches = "tight", dpi = 200) #PC
+            i_pair = i_pair + 1
             plt.show()
         
     return None

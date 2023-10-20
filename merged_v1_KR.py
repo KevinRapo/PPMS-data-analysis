@@ -467,7 +467,7 @@ def filterMeasurementIndices(unfiltered_indices):
     return filtered
 
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, n = 50): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
 
@@ -729,8 +729,8 @@ def appendAndSave(dictionary, dType):
         i_key = i_key + 1
         i_pair = 1
         for pair in dictionary[key]:
-            print("i_pair")
-            print(i_pair)
+            # print("i_pair")
+            # print(i_pair)
             
             result = pd.concat([pair[0], pair[1]])
             

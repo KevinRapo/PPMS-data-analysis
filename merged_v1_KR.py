@@ -695,16 +695,16 @@ def addParameterColumns(separated, type_string):
                 
                 indices = series.index
                 series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
-                unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],\
-                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],\
+                unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],
+                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],
                                         momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
                 
             elif type_string == "MvsT":
                 
                 indices = series.index
                 series[field] = ORIGINAL_DATAFRAME.loc[indices, field]
-                unit_row = pd.DataFrame({ temp: [temp_unit], moment: [moment_unit], field: [field_unit],\
-                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],\
+                unit_row = pd.DataFrame({ temp: [temp_unit], moment: [moment_unit], field: [field_unit],
+                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],
                                         momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
                 
             series[error] = ORIGINAL_DATAFRAME.loc[indices, error]
@@ -782,7 +782,7 @@ def momentDivDimensionUncertaintyError(separated, dimension, measurement_deviati
             momentStdError = df["M. Std. Err. (emu)"].iloc[1:]
             moment = df["Moment (emu)"].iloc[1:]
             # momentDivMassError = math.sqrt(((1/SAMPLE_MASS_g)*momentStdError)**2+((-moment/SAMPLE_MASS_g**2)*momentStdError)**2)
-            momentDivMassError = (((1/dimension)*momentStdError)**2 + \
+            momentDivMassError = (((1/dimension)*momentStdError)**2 + 
                                   ((-moment/dimension**2)*measurement_deviation)**2)**0.5
             df["Error test"] = momentDivMassError
     return None

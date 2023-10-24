@@ -733,7 +733,7 @@ def appendAndSave(dictionary, dType):
             # print("i_pair")
             # print(i_pair)
             
-            result = pd.concat([pair[0], pair[1]])
+            result = pd.concat([pair[0], pair[1].tail(pair[1].shape[0]-1)])
             
             file_name = f'{dType}_data_at_{key}_{i_pair}.csv'
             

@@ -231,12 +231,11 @@ def getThickness(data):
 # Recognizes what measurement types are present in the file. Returns two Pandas.Series: temperatures_of_interest, magnetic_fields_of_interest
 # Mida peaks tagastama errori korral?
 
-def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
+def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, min_count = 5):
     #Checks what measurements the file contains
-    global tempCount, fieldCount
-    
+
     rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
-    rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=1)
+    rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=0)
     
     #returnitavad Seried
     magnetic_fields_of_interest = pd.Series(dtype=float)
@@ -246,6 +245,8 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
     tempCount = rounded_dataset_T.value_counts()
     fieldCount = rounded_dataset_H.value_counts()
     
+    tempCount = tempCount[tempCount > min_count]
+    fieldCount = fieldCount[fieldCount > min_count]
     
     codes_T, uniques_T = pd.factorize(rounded_dataset_T)
     codes_H, uniques_H = pd.factorize(rounded_dataset_H)
@@ -272,7 +273,6 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
 
             print("T continous, H discrete = MvsT \n")
             magnetic_fields_of_interest = pd.concat([magnetic_fields_of_interest,pd.Series(fieldCount.index.values)], ignore_index = True)
-        
         else: #continous
 
             print("T continous, H continous = both \n")
@@ -505,7 +505,7 @@ def filterMeasurementIndices(unfiltered_indices):
     return filtered
 
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, n = 25): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
 
@@ -952,7 +952,7 @@ if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
 plotMeasurementTimeseries()
      
 #Error       
-momentDivDimensionUncertaintyError(SEPARATED_MvsH, SAMPLE_MASS_g, 0.0001) #for moment/mass uncertainty
+# momentDivDimensionUncertaintyError(SEPARATED_MvsH, SAMPLE_MASS_g, 0.0001) #for moment/mass uncertainty
 
 # #creates a column "Type" for each data point type
 # ORIGINAL_DATAFRAME["Type"] = ""

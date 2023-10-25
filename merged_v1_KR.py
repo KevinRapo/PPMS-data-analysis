@@ -36,7 +36,8 @@ def askNewDatafilePath():
 
     Returns
     -------
-    file_path : file path for the measurement file
+    file_path : string
+        file path for the measurement file
 
     """
     
@@ -47,19 +48,19 @@ def askNewDatafilePath():
 
 def readDatafile(file_path):
     '''
-    Read datafile form file_path, return header and data as pandas df
+    Reads in the data file and separates the header and measurement info
     
     Parameters
     ----------
-    file_path : TYPE
-        DESCRIPTION.
+    file_path : string
+        file path for the measurement file
 
     Returns
     -------
-    header : TYPE
-        DESCRIPTION.
-    data : TYPE
-        DESCRIPTION.
+    header : pandas dataframe
+        header info   
+    data : pandas dataframe
+        measurement info
 
     '''
     #Opens the selected data file
@@ -79,23 +80,21 @@ def readDatafile(file_path):
     
     return header, data
 
-
-
-# determine if its VSM or ACMS datafile, return "token"
-# Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. IN VSM the columns is named Moment (emu), while in ACMS its named DC Moment (emu) 
+ 
 def determineDatafileType(header):
     """
-    
+    determine if its VSM or ACMS datafile
+    Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. IN VSM the columns is named Moment (emu), while in ACMS its named DC Moment (emu)
 
     Parameters
     ----------
-    header : TYPE
-        DESCRIPTION.
+    header : pandas dataframe
+        measurement file header
 
     Returns
     -------
-    token : TYPE
-        DESCRIPTION.
+    token : string
+        data file type
 
     """
     #data_type checks from the first line under the header whether the file is VSM or ACMS and returns a token for further use
@@ -115,8 +114,24 @@ def determineDatafileType(header):
     return token
 
         
-# text parsing function to help with sample parameters
+
 def extractFloatWithUnit(string):
+    """
+    text parsing function to help with sample parameters
+
+    Parameters
+    ----------
+    string : string
+        The parameter string to examine.
+
+    Returns
+    -------
+    float_val : float
+        Sample parameter value.
+    unit : string
+        Sample parameter unit.
+
+    """
     #extract_float_with_unit function uses regex to index the input string
     #into a (float, unit) format if it has units, if no units (float, None) format, if no value (None)
     regex = r'^([\d.]+)\s*([a-zA-Z]+(\d)?)?$'# regular expression to match float value and unit
@@ -233,7 +248,7 @@ def getThickness(data):
 
 def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, min_count = 5):
     #Checks what measurements the file contains
-
+    
     rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
     rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=0)
     
@@ -245,8 +260,8 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
     tempCount = rounded_dataset_T.value_counts()
     fieldCount = rounded_dataset_H.value_counts()
     
-    tempCount = tempCount[tempCount > min_count]
-    fieldCount = fieldCount[fieldCount > min_count]
+    # tempCount = tempCount[tempCount > min_count]
+    # fieldCount = fieldCount[fieldCount > min_count]
     
     codes_T, uniques_T = pd.factorize(rounded_dataset_T)
     codes_H, uniques_H = pd.factorize(rounded_dataset_H)
@@ -272,6 +287,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
         if ratio_H < discrete_detection_ration: #discrete
 
             print("T continous, H discrete = MvsT \n")
+            fieldCount = fieldCount[fieldCount > min_count]
             magnetic_fields_of_interest = pd.concat([magnetic_fields_of_interest,pd.Series(fieldCount.index.values)], ignore_index = True)
         else: #continous
 
@@ -280,7 +296,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
             meanTempCount=tempCount.mean()                     #see osa siin annab segafailide puhul mõistlikud numbrid. Aga mõne erilisema faili korral ei saa ta aru et sega fail on, aga need read annavad ka siis mõistlikud numbrid. Äkki saame kuidagi hoopis neid prinditavaid liste kasutada faili ära tundmiseks.
             muutuja = rounded_dataset_T.value_counts() > meanTempCount*10
             temperatures_of_interest = pd.Series(rounded_dataset_T.value_counts()[muutuja].index.values)
-            
+            print("meanTempCount",meanTempCount)
             meanFieldCount=fieldCount.mean()
             muutuja2 = rounded_dataset_H.value_counts() > meanFieldCount*10
             magnetic_fields_of_interest = pd.Series(rounded_dataset_H.value_counts()[muutuja2].index.values)

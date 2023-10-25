@@ -29,17 +29,39 @@ root.withdraw()
 
 
 #save_to_path = os.path.dirname(file_path)
-
-#ask for user input for a datafile        
+        
 def askNewDatafilePath():
+    """
+    ask for user input for a datafile
+
+    Returns
+    -------
+    file_path : file path for the measurement file
+
+    """
     
     file_path = filedialog.askopenfilename()
     
     return file_path
 
 
-#Read datafile form file_path, return header and data as pd df
 def readDatafile(file_path):
+    '''
+    Read datafile form file_path, return header and data as pandas df
+    
+    Parameters
+    ----------
+    file_path : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    header : TYPE
+        DESCRIPTION.
+    data : TYPE
+        DESCRIPTION.
+
+    '''
     #Opens the selected data file
     with open(file_path, 'r') as f:
         i = 0 #Rowindex, how many rows until header 
@@ -62,6 +84,20 @@ def readDatafile(file_path):
 # determine if its VSM or ACMS datafile, return "token"
 # Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. IN VSM the columns is named Moment (emu), while in ACMS its named DC Moment (emu) 
 def determineDatafileType(header):
+    """
+    
+
+    Parameters
+    ----------
+    header : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    token : TYPE
+        DESCRIPTION.
+
+    """
     #data_type checks from the first line under the header whether the file is VSM or ACMS and returns a token for further use
     token = "error - unknown datafile format"
     
@@ -197,7 +233,8 @@ def getThickness(data):
 
 def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
     #Checks what measurements the file contains
-       
+    global tempCount, fieldCount
+    
     rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
     rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=1)
     
@@ -216,7 +253,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
     ratio_T = uniques_T.size/rounded_dataset_T.size
     ratio_H = uniques_H.size/rounded_dataset_H.size
     print(f"T : {ratio_T}, H : {ratio_H }")
-
+    
     
     if ratio_T < discrete_detection_ration: #discrete
     
@@ -512,6 +549,7 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
     plt.scatter(data.index, local_peaks['min'], c='r', label='Minima')
     plt.scatter(data.index, local_peaks['max'], c='g', label='Maxima')
     plt.plot(data.index, data[column_name], label=column_name)
+    plt.title("Test title")
     plt.legend()
     plt.show()
         

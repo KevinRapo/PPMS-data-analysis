@@ -226,19 +226,24 @@ def getAreaCM2(header):
 #Parsed thickness
 def getThickness(data):
     #Checks whether the title contains sample thickness in nm units: e.g. "25nm" and outputs 25
-    thickness = data.iloc[3,1] #Title index in table
-    pattern = r"(\d+)\s*(nm)"
-    match = re.search(pattern,thickness)
-    if match:
-        float_str = match.group(1)
-        print(f"Checking thickness: {float_str} nm")
-        #unit = match.group(2)
-        float_val = float(float_str)*10**-7 # nm to cm conversion
-        print(f"Sample thickness is: {float_val} cm \n" )
-        return float_val
-    else:
-        print("Sample thickness not found in title \n")
+    try:
+        thickness = data.iloc[3,1] #Title index in table
+        pattern = r"(\d+)\s*(nm)"
+        match = re.search(pattern,thickness)
+        if match:
+            float_str = match.group(1)
+            print(f"Checking thickness: {float_str} nm")
+            #unit = match.group(2)
+            float_val = float(float_str)*10**-7 # nm to cm conversion
+            print(f"Sample thickness is: {float_val} cm \n" )
+            return float_val
+        else:
+            print("Sample thickness not found in title \n")
+            return None
+    except:
+        print("Sample thickness unknown Exeption \n")
         return None
+        
 
 
 #---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -855,6 +860,7 @@ HEADER, ORIGINAL_DATAFRAME = readDatafile(DATAFILE_PATH)
 OPTION_TYPE = determineDatafileType(HEADER)
 #print(OPTION_TYPE) kas teha nii et funk ise ei prindi ja prindid kui tahad või funktsioon prindib anyway?
 
+
 #Selle lisasin juurde kuna moment tulbas võib olla nan values ja enne pead kõik õiged tulbad võtma, et need eraldada, muidu eemaldab kõik read,
 # sest igas reas on mingi tulp nan value'ga
 if OPTION_TYPE == "VSM":
@@ -862,12 +868,14 @@ if OPTION_TYPE == "VSM":
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
     
 elif OPTION_TYPE == "ACMS":
-    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "DC Moment (emu)", "M. Std. Err. (emu)"]].dropna()
+    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "DC Moment (emu)", "DC Std. Err. (emu)"]].dropna()
+    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.rename(columns={"DC Moment (emu)": "Moment (emu)", "DC Std. Err. (emu)": "M. Std. Err. (emu)"})
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
 
 #parse HEADER
 SAMPLE_MASS_g = getMassInGrams(HEADER)
 SAMPLE_AREA_CM2 = getAreaCM2(HEADER)
+#siin peaks olema try ja catch exepction ümber
 THICKNESS = getThickness(HEADER)
 
 
@@ -930,7 +938,7 @@ else:
     print(' MvsH data detected')
     print(TEMPERATURES_OF_INTEREST)
     
-    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
+    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST, bound = 1)
     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     
     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")

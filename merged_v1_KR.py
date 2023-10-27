@@ -16,7 +16,7 @@ from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 import glob
 import math
-# import copy
+import copy
 
 USER_PATH = os.getcwd()
 
@@ -327,6 +327,30 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
         
     return all_indices #filtered_dfs
 
+#sorting function for max H value
+def sortFieldValues(pair_indices):
+    # pair_indices = copy.deepcopy(pair_indices_original)
+    # copy_list = []
+    for pair in pair_indices:
+        first_idx = pair[0]
+        first_val = ORIGINAL_DATAFRAME.loc[first_idx, "Magnetic Field (Oe)"]
+
+        #print(f"{first_val=}\n")
+        
+        while pair:
+            idx = pair[-1]
+            #print(f"{idx=}")
+            val_to_compare = ORIGINAL_DATAFRAME.loc[idx, "Magnetic Field (Oe)"]
+            #print(f"{val_to_compare=}")
+            
+            if val_to_compare < first_val:
+                break
+            
+            pair.pop()
+            #print(f"{popped=}")
+            
+    return None
+        
 #Rounds the min/max field for each MvsH correction
 def roundFieldForCorrection(indices):
     #rounds the magnetic field to a nice number (100041.221 -> 100000)
@@ -394,7 +418,9 @@ def interpolateMvsH(separated_MvsH, error_tables):
     
     interpolated_dict = {}
     for val_pair in separated_MvsH:
+        
         max_val = max(val_pair[0]["Magnetic Field (Oe)"]) # [0] ei pruugi alati õige max anda
+        print("max val",max_val)
         
         for key in error_tables:
             if max_val - 100 <= key <= max_val + 100:
@@ -425,6 +451,7 @@ def plotMvsH(raamat, const_T_values):
             M2 = df[1]["Moment (emu)"] 
             
             colorIdx = df[0].iloc[1].name
+            
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
             if "True Field (Oe)" in df[0]:
@@ -784,13 +811,10 @@ def appendAndSave(dictionary, dType):
     i_key = 1
     
     for key in dictionary:
-        # print("i_key")
-        # print(i_key)
+
         i_key = i_key + 1
         i_pair = 1
         for pair in dictionary[key]:
-            # print("i_pair")
-            # print(i_pair)
             
             result = pd.concat([pair[0], pair[1].tail(pair[1].shape[0]-1)])
             
@@ -801,28 +825,6 @@ def appendAndSave(dictionary, dType):
             result.to_csv(full_path, index = False)
             
             i_pair = i_pair + 1
-            
-            # # Use this function to search for any files which match your filename
-            # files_present = glob.glob(full_path)
-            
-            # # if no matching files, write to csv, if there are matching files, print statement
-            # if not files_present:
-            #     result.to_csv(full_path, index = False)
-            # else:
-            #     counter = 1
-            #     NewFileCreated=True
-            #     while NewFileCreated :
-            #         full_path = os.path.join(full_path, str(counter))
-            #         file_name = f'{dType}_data_at_{key}_{counter}.csv'
-                    
-            #         full_path = os.path.join(folder_name, file_name)
-                    
-            #         files_present = glob.glob(full_path)
-            #         if not files_present:
-            #             result.to_csv(full_path, index = False)
-            #             NewFileCreated = False
-            #         else:
-            #             counter = counter + 1
             
     return None
 #---------------Measurement errors----------------------------
@@ -880,7 +882,7 @@ THICKNESS = getThickness(HEADER)
 
 
 #Color list for color idx and initializing the starting color idx with just black
-COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange"]
+COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange", "pink", "olive"]
 ORIGINAL_DATAFRAME["color"] = "black"
 
 print("_________chechMeasurementType2-----------")  #mis peaks olema selle funktsiooni ebaõnnestumise/veateade? return None? või lihtsalt kaks tühja Seriet?
@@ -913,10 +915,10 @@ else:
     
     separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")# the indices where the separation is going to be done
     
-    try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
-        SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
-    except IndexError as ie:
-        raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+    #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
+    SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+    # except IndexError as ie:
+    #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
         
     DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
     
@@ -943,12 +945,13 @@ else:
     
     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
     
-    try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
-        SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
-    except IndexError as ie:
-        raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+    #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
+    SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
+    # except IndexError as ie:
+    #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    
+    #uncomment sortFieldValues if needed for correct max value in the measurement pair
+    #sortFieldValues(MvsH_pair_indices)
     correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     
@@ -971,10 +974,10 @@ if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')
 
 
-
 #Plots temp, field and moment against time
 plotMeasurementTimeseries()
-     
+
+
 #Error       
 # momentDivDimensionUncertaintyError(SEPARATED_MvsH, SAMPLE_MASS_g, 0.0001) #for moment/mass uncertainty
 

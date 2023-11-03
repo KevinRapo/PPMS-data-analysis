@@ -331,6 +331,7 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
 def sortFieldValues(pair_indices):
     # pair_indices = copy.deepcopy(pair_indices_original)
     # copy_list = []
+    
     for pair in pair_indices:
         first_idx = pair[0]
         first_val = ORIGINAL_DATAFRAME.loc[first_idx, "Magnetic Field (Oe)"]
@@ -347,10 +348,36 @@ def sortFieldValues(pair_indices):
                 break
             
             pair.pop()
-            #print(f"{popped=}")
+            # print(f"{popped=}")
             
     return None
+
+def sortTest(pairs):
+    # global first, second
+    
+    for pair in pairs:
+        first = pair[0]["Magnetic Field (Oe)"]
+        second = pair[1]["Magnetic Field (Oe)"]
+        first_max = max(first)
+        second_max = max(second)
+        ratio = first_max/second_max
         
+        print(f"{first_max=}")
+        print(f"{second_max=}")
+        print(f"{ratio=}\n")
+        
+        while not 0.9 < ratio < 1.1:
+            if ratio < 0.9:
+                
+                second = second[:-1]
+                ratio = first_max/max(second)
+                print(f"first:{first.iloc[0]}")
+                print(f"second:{max(second)}")
+                print(f"new ratio: {ratio}")
+                print("\n")
+                
+    return None
+
 #Rounds the min/max field for each MvsH correction
 def roundFieldForCorrection(indices):
     #rounds the magnetic field to a nice number (100041.221 -> 100000)
@@ -371,19 +398,40 @@ def roundFieldForCorrection(indices):
     return values
 
 
+# def searchCorrectionTable(folder_path, number):
+#     #searches for the right table based on the value in the title and returns the filepath
+    
+#     for filename in os.listdir(folder_path):
+#         # Split the filename on a specific character, e.g., underscore
+#         parts = filename.split('_') # Modify this based on your file naming convention
+#         # Check if the number is an exact match in any part of the filename
+        
+#         if str(number) in parts:
+#             file_path = os.path.join(folder_path, filename)
+#             return file_path
+        
+#     return None
+
 def searchCorrectionTable(folder_path, number):
-    #searches for the right table based on the value in the title and returns the filepath
+    closest_match = None
+    min_difference = float('inf')  # Initialize with positive infinity
     
     for filename in os.listdir(folder_path):
-        # Split the filename on a specific character, e.g., underscore
-        parts = filename.split('_') # Modify this based on your file naming convention
-        # Check if the number is an exact match in any part of the filename
-        
-        if str(number) in parts:
-            file_path = os.path.join(folder_path, filename)
-            return file_path
-        
-    return None
+        parts = filename.split('_')  # Modify this based on your file naming convention
+        try:
+            value = int(parts[1])
+            difference = abs(number - value)
+            if difference < min_difference:
+                min_difference = difference
+                closest_match = filename
+        except (ValueError, IndexError):
+            # Ignore filenames that don't have a numeric part or invalid parts
+            pass
+
+    if closest_match:
+        return os.path.join(folder_path, closest_match)
+    else:
+        return None
 
 CORRECTION_FOLDER_PATH = os.path.join(USER_PATH,'PdCorrection tables')
 
@@ -420,10 +468,10 @@ def interpolateMvsH(separated_MvsH, error_tables):
     for val_pair in separated_MvsH:
         
         max_val = max(val_pair[0]["Magnetic Field (Oe)"]) # [0] ei pruugi alati õige max anda
-        print("max val",max_val)
+        #print("max val",max_val)
         
         for key in error_tables:
-            if max_val - 100 <= key <= max_val + 100:
+            if max_val - 200 <= key <= max_val + 200:
                 #print(f"{key} kukub {max_val} vahemikku")
                 
                 for val in val_pair:
@@ -773,6 +821,7 @@ def addParameterColumns(separated, type_string):
     volume = SAMPLE_AREA_CM2*THICKNESS if SAMPLE_AREA_CM2 and THICKNESS else None
 
     unit_row = None
+    
     for i ,pair in enumerate(separated):
         
         for j, series in enumerate(pair):
@@ -850,14 +899,14 @@ def momentDivDimensionUncertaintyError(separated, dimension, measurement_deviati
 
 #-------------- Actually Run the program here -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#!!!
+
 # Ask user input to get a path to datafile
 DATAFILE_PATH = askNewDatafilePath()
 save_to_path = os.path.dirname(DATAFILE_PATH)
 
 # Read the datafile
 HEADER, ORIGINAL_DATAFRAME = readDatafile(DATAFILE_PATH)
-
+ORIGINAL_COPY = copy.deepcopy(ORIGINAL_DATAFRAME)
 # VSM or ACMSII? or maybe HC or ETO in the future
 OPTION_TYPE = determineDatafileType(HEADER)
 #print(OPTION_TYPE) kas teha nii et funk ise ei prindi ja prindid kui tahad või funktsioon prindib anyway?
@@ -931,7 +980,7 @@ else:
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
-
+#!!!
 if TEMPERATURES_OF_INTEREST.size <= 0:
     print('no MvsH detected')
      
@@ -950,8 +999,10 @@ else:
     # except IndexError as ie:
     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
+    copy = copy.deepcopy(SEPARATED_MvsH)
+    sortTest(copy)
     #uncomment sortFieldValues if needed for correct max value in the measurement pair
-    #sortFieldValues(MvsH_pair_indices)
+    sortFieldValues(MvsH_pair_indices)
     correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     
@@ -981,26 +1032,5 @@ plotMeasurementTimeseries()
 #Error       
 # momentDivDimensionUncertaintyError(SEPARATED_MvsH, SAMPLE_MASS_g, 0.0001) #for moment/mass uncertainty
 
-# #creates a column "Type" for each data point type
-# ORIGINAL_DATAFRAME["Type"] = ""
-# setColumnForType(MvsT_INDICES, "MvsT")
-# setColumnForType(MvsH_INDICES, "MvsH")
-
-# #Adds and calculates all columns of interest to each separate measurement cycle
-# addParameterColumns(SEPARATED_MvsH, "MvsH")
-# addParameterColumns(SEPARATED_MvsT, "MvsT")
-
-
-# #Saves the measurement csv files
-# appendAndSave(DICT_MvsH, "MvsH") #KORRAKS OLI MINGI PERMISSION ERROR AGA HETKEL EI OSKA DUBLEERIDA SEDA
-# appendAndSave(DICT_MvsT, "MvsT")
-
-
-# # Check if the folder already exists
-# if not os.path.exists(folder_name):
-#     # If it doesn't exist, create it
-#     os.makedirs(folder_name)
-# else:
-#     print(f"New folder '{folder_name}' already exists. \n\nIf you would like to create a new folder for the same file you can add something to the end of *folder_name* variable ")
 
 

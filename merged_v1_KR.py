@@ -17,7 +17,7 @@ from scipy.signal import argrelextrema
 import glob
 import math
 import copy
-
+import warnings
 USER_PATH = os.getcwd()
 
 
@@ -97,11 +97,11 @@ def determineDatafileType(header):
         data file type
 
     """
+    global option_specific_line, test_line
     #data_type checks from the first line under the header whether the file is VSM or ACMS and returns a token for further use
     token = "error - unknown datafile format"
     
-    option_specific_line = header['1'][1]
-    
+    option_specific_line = header.iloc[1, 0]
     
     if "VSM" in option_specific_line:
         print("\nThis is a VSM data file \n")
@@ -357,39 +357,56 @@ def sortTest(pairs):
     new_pairs = []
 
     for pair in pairs:
-        first = pair[0]#["Magnetic Field (Oe)"]
+        # first1 = pair[0]#["Magnetic Field (Oe)"]
+        # first = first1.copy()
+        first = pair[0]
+        # print(type(first))
         second = pair[1]#["Magnetic Field (Oe)"]
         first_max = max(first["Magnetic Field (Oe)"])
         second_max = max(second["Magnetic Field (Oe)"])
         ratio = first_max/second_max
         
-        print(f"{first_max=}")
-        print(f"{second_max=}")
-        print(f"{ratio=}\n")
+        # print(f"{first_max=}")
+        # print(f"{second_max=}")
+        # print(f"{ratio=}\n")
         new_list = []
-        
+        print()
         while not 0.9 < ratio < 1.1:
             if ratio < 0.9:
                 
                 second = second[:-1]
                 ratio = first_max/max(second["Magnetic Field (Oe)"])
-                print(f"first:{first.iloc[0]}")
-                print(f"second:{max(second)}")
-                print(f"new ratio: {ratio}")
-                print("\n")
-                new_list.append(first)
-                new_list.append(second)
-                
+                # print(f"first:{first.iloc[0]}")
+                # print(f"second:{max(second)}")
+                # print(f"new ratio: {ratio}")
+                # print("\n")
+                # # new_list.append(first)
+                # # new_list.append(second)
+                # print("%%%%%%%%%%%%%%%%%%")
+                # print(f"function id:{hex(id(new_list))}")
+                # print("%%%%%%%%%%%%%%%%%%")
+        new_list.append(first)
+        new_list.append(second)
         new_pairs.append(new_list)
+        
     return new_pairs
 
 #Rounds the min/max field for each MvsH correction
-def roundFieldForCorrection(indices):
+def roundFieldForCorrection(pairs):
     #rounds the magnetic field to a nice number (100041.221 -> 100000)
     values = []
-    for indx in indices:
-        MvsH = ORIGINAL_DATAFRAME["Magnetic Field (Oe)"].loc[indx]
-        max_range = max(MvsH)
+    for pair in pairs:
+        first_max = max(pair[0]["Magnetic Field (Oe)"])
+        second_max = max(pair[1]["Magnetic Field (Oe)"])
+        max_range = None
+        
+        # print(f"{first_max=}")
+        # print(f"{second_max=}")
+        if first_max > second_max:
+            max_range = first_max
+        elif first_max < second_max:
+            max_range = second_max
+            
         if max_range >= 10000:
             nr = round(max_range / 1000) * 1000
         elif max_range >= 1000:
@@ -401,21 +418,6 @@ def roundFieldForCorrection(indices):
         values.append(nr)
         
     return values
-
-
-# def searchCorrectionTable(folder_path, number):
-#     #searches for the right table based on the value in the title and returns the filepath
-    
-#     for filename in os.listdir(folder_path):
-#         # Split the filename on a specific character, e.g., underscore
-#         parts = filename.split('_') # Modify this based on your file naming convention
-#         # Check if the number is an exact match in any part of the filename
-        
-#         if str(number) in parts:
-#             file_path = os.path.join(folder_path, filename)
-#             return file_path
-        
-#     return None
 
 def searchCorrectionTable(folder_path, number):
     closest_match = None
@@ -432,12 +434,13 @@ def searchCorrectionTable(folder_path, number):
         except (ValueError, IndexError):
             # Ignore filenames that don't have a numeric part or invalid parts
             pass
-
+        
     if closest_match:
         return os.path.join(folder_path, closest_match)
     else:
         return None
 
+    
 CORRECTION_FOLDER_PATH = os.path.join(USER_PATH,'PdCorrection tables')
 
 def CorrectionTableToDict(numbers_to_search):
@@ -468,22 +471,35 @@ def interpolateTrueField(magnetic_field_values, error_table_measurements):
 
 def interpolateMvsH(separated_MvsH, error_tables):
     #Adds the true field values column to the existing measurement dataframes
-    
+    global true_field_interpolated, val
     interpolated_dict = {}
-    for val_pair in separated_MvsH:
+    for pair in separated_MvsH:
         
-        max_val = max(val_pair[0]["Magnetic Field (Oe)"]) # [0] ei pruugi alati õige max anda
-        #print("max val",max_val)
+        # max_val = max(val_pair[0]["Magnetic Field (Oe)"]) # [0] ei pruugi alati õige max anda
+        # print("max val",max_val)
         
+        first_max = max(pair[0]["Magnetic Field (Oe)"])
+        second_max = max(pair[1]["Magnetic Field (Oe)"])
+        max_range = None
+        
+        # print(f"{first_max=}")
+        # print(f"{second_max=}")
+        if first_max > second_max:
+            max_range = first_max
+        elif first_max < second_max:
+            max_range = second_max
+            
         for key in error_tables:
-            if max_val - 200 <= key <= max_val + 200:
-                #print(f"{key} kukub {max_val} vahemikku")
+            if key - 200 <= max_range <= key + 200:
+
+                print(f"{max_range} kukub {key} vahemikku")
                 
-                for val in val_pair:
+                for val in pair:
                     
                     magnetic_field_values = val["Magnetic Field (Oe)"]
+                    # print(len(magnetic_field_values))
                     true_field_interpolated = interpolateTrueField(magnetic_field_values, error_tables[key])
-                    
+                    # print(len(true_field_interpolated))
                     val["True Field (Oe)"] = true_field_interpolated
                                 
     return interpolated_dict
@@ -514,7 +530,7 @@ def plotMvsH(raamat, const_T_values):
                 ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
                 ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
             
-            ax.plot(H1 ,M1, color = "grey", label = "Descending") 
+            ax.plot(H1 ,M1, color = "grey", label = "Descending")#!!! mis siin värvidega jääb
             ax.plot(H2, M2, color = "grey", label = "Ascending")
             
             
@@ -796,7 +812,7 @@ def setColumnForType(indices, type_string):
     return None
 
 
-def addParameterColumns(separated, type_string):
+def addParameterColumns(separated, type_string): #!!! siia jäi error
     
     temp = "Temperature (K)"
     temp_unit = "K"
@@ -834,7 +850,7 @@ def addParameterColumns(separated, type_string):
             if type_string == "MvsH":
                 
                 indices = series.index
-                series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
+                series.loc[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
                 unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],
                                         error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],
                                         momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
@@ -846,11 +862,11 @@ def addParameterColumns(separated, type_string):
                 unit_row = pd.DataFrame({ temp: [temp_unit], moment: [moment_unit], field: [field_unit],
                                         error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],
                                         momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
-                
-            series[error] = ORIGINAL_DATAFRAME.loc[indices, error]
+            
+            series[ error] = ORIGINAL_DATAFRAME.loc[indices, error]
             series[momentDivMass] = series[moment]/SAMPLE_MASS_g if SAMPLE_MASS_g else None
-            series[momentDivArea] = series[moment]/SAMPLE_AREA_CM2 if SAMPLE_AREA_CM2 else None
-            series[momentDivVolume] = series[moment]/volume if volume else None
+            series[ momentDivArea] = series[moment]/SAMPLE_AREA_CM2 if SAMPLE_AREA_CM2 else None
+            series[ momentDivVolume] = series[moment]/volume if volume else None
             series[susceptibility] = series[moment]/(SAMPLE_MASS_g*series[field]) if SAMPLE_MASS_g else None
             series[oneOverSusceptibility] = 1/(series[moment]/(SAMPLE_MASS_g*series[field])) if SAMPLE_MASS_g else None
             
@@ -861,7 +877,8 @@ def addParameterColumns(separated, type_string):
         
     return None
 
-def appendAndSave(dictionary, dType):
+# Siin on ka üks huvitav error kui file excelis avatud sama aeg siis ei luba uut üle salvestada
+def appendAndSave(dictionary, dType): #!!! siin salvestab ikka halva indeksi kaasa copy file puhul, pead kuidagi edaspidiseks salvestama uued indeksid
     i_key = 1
     
     for key in dictionary:
@@ -1004,28 +1021,38 @@ else:
     # except IndexError as ie:
     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    copy = copy.deepcopy(SEPARATED_MvsH)
-    sortTest(copy)
+    # copy1 = SEPARATED_MvsH
+    # print("##################")
+    # print(f"copy id:{hex(id(copy))}")
+    # print("##################")
+    # copytest = sortTest(SEPARATED_MvsH)
+    # print(">>>>>>>>>>>>>>>>>>>>")
+    # print(f"copytest id:{hex(id(copytest))}")
+    # print(">>>>>>>>>>>>>>>>>>>>")
+    #copy[0].append([5])
+    
     
     #uncomment sortFieldValues if needed for correct max value in the measurement pair
     sortFieldValues(MvsH_pair_indices)
     
-    SEPARATED_MvsH_test = sortTest(SEPARATED_MvsH)
-    
-    correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
+    SEPARATED_MvsH = sortTest(SEPARATED_MvsH)
+    hardcopy1 = copy.deepcopy(SEPARATED_MvsH)
+    correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     
     interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
-    
+    hardcopy2 = copy.deepcopy(SEPARATED_MvsH)
     DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
     # DICT_MvsH_copy = copy.deepcopy(DICT_MvsH) #copy for plotting before adding all other columns and unit row
     
     plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
     
     setColumnForType(MvsH_INDICES, "MvsH")
+    hardcopy3 = copy.deepcopy(SEPARATED_MvsH)
     addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
+    hardcopy4 = copy.deepcopy(SEPARATED_MvsH)
     appendAndSave(DICT_MvsH, "MvsH")
-    SEPARATED_MvsH.append([5])
+    #SEPARATED_MvsH.append([5])
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 

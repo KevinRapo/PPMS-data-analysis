@@ -354,29 +354,34 @@ def sortFieldValues(pair_indices):
 
 def sortTest(pairs):
     # global first, second
-    
+    new_pairs = []
+
     for pair in pairs:
-        first = pair[0]["Magnetic Field (Oe)"]
-        second = pair[1]["Magnetic Field (Oe)"]
-        first_max = max(first)
-        second_max = max(second)
+        first = pair[0]#["Magnetic Field (Oe)"]
+        second = pair[1]#["Magnetic Field (Oe)"]
+        first_max = max(first["Magnetic Field (Oe)"])
+        second_max = max(second["Magnetic Field (Oe)"])
         ratio = first_max/second_max
         
         print(f"{first_max=}")
         print(f"{second_max=}")
         print(f"{ratio=}\n")
+        new_list = []
         
         while not 0.9 < ratio < 1.1:
             if ratio < 0.9:
                 
                 second = second[:-1]
-                ratio = first_max/max(second)
+                ratio = first_max/max(second["Magnetic Field (Oe)"])
                 print(f"first:{first.iloc[0]}")
                 print(f"second:{max(second)}")
                 print(f"new ratio: {ratio}")
                 print("\n")
+                new_list.append(first)
+                new_list.append(second)
                 
-    return None
+        new_pairs.append(new_list)
+    return new_pairs
 
 #Rounds the min/max field for each MvsH correction
 def roundFieldForCorrection(indices):
@@ -1001,8 +1006,12 @@ else:
     
     copy = copy.deepcopy(SEPARATED_MvsH)
     sortTest(copy)
+    
     #uncomment sortFieldValues if needed for correct max value in the measurement pair
     sortFieldValues(MvsH_pair_indices)
+    
+    SEPARATED_MvsH_test = sortTest(SEPARATED_MvsH)
+    
     correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     
@@ -1016,7 +1025,7 @@ else:
     setColumnForType(MvsH_INDICES, "MvsH")
     addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
     appendAndSave(DICT_MvsH, "MvsH")
-    
+    SEPARATED_MvsH.append([5])
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 

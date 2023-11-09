@@ -327,30 +327,30 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
         
     return all_indices #filtered_dfs
 
-#sorting function for max H value
-def sortFieldValues(pair_indices):
-    # pair_indices = copy.deepcopy(pair_indices_original)
-    # copy_list = []
+# #sorting function for max H value/HETKEL EI OLE VAJA SEDA
+# def sortFieldValues(pair_indices):
+#     # pair_indices = copy.deepcopy(pair_indices_original)
+#     # copy_list = []
     
-    for pair in pair_indices:
-        first_idx = pair[0]
-        first_val = ORIGINAL_DATAFRAME.loc[first_idx, "Magnetic Field (Oe)"]
+#     for pair in pair_indices:
+#         first_idx = pair[0]
+#         first_val = ORIGINAL_DATAFRAME.loc[first_idx, "Magnetic Field (Oe)"]
 
-        #print(f"{first_val=}\n")
+#         #print(f"{first_val=}\n")
         
-        while pair:
-            idx = pair[-1]
-            #print(f"{idx=}")
-            val_to_compare = ORIGINAL_DATAFRAME.loc[idx, "Magnetic Field (Oe)"]
-            #print(f"{val_to_compare=}")
+#         while pair:
+#             idx = pair[-1]
+#             #print(f"{idx=}")
+#             val_to_compare = ORIGINAL_DATAFRAME.loc[idx, "Magnetic Field (Oe)"]
+#             #print(f"{val_to_compare=}")
             
-            if val_to_compare < first_val:
-                break
+#             if val_to_compare < first_val:
+#                 break
             
-            pair.pop()
-            # print(f"{popped=}")
+#             pair.pop()
+#             # print(f"{popped=}")
             
-    return None
+#     return None
 
 def sortTest(pairs):
     # global first, second
@@ -370,21 +370,19 @@ def sortTest(pairs):
         # print(f"{second_max=}")
         # print(f"{ratio=}\n")
         new_list = []
-        print()
+        #print(f"{ratio=}")
         while not 0.9 < ratio < 1.1:
             if ratio < 0.9:
-                
+
                 second = second[:-1]
                 ratio = first_max/max(second["Magnetic Field (Oe)"])
-                # print(f"first:{first.iloc[0]}")
-                # print(f"second:{max(second)}")
-                # print(f"new ratio: {ratio}")
-                # print("\n")
-                # # new_list.append(first)
-                # # new_list.append(second)
-                # print("%%%%%%%%%%%%%%%%%%")
-                # print(f"function id:{hex(id(new_list))}")
-                # print("%%%%%%%%%%%%%%%%%%")
+                #print(f"{ratio=}")
+                
+            elif ratio > 1.1:
+
+                second = second[:-1]
+                break
+
         new_list.append(first)
         new_list.append(second)
         new_pairs.append(new_list)
@@ -492,7 +490,7 @@ def interpolateMvsH(separated_MvsH, error_tables):
         for key in error_tables:
             if key - 200 <= max_range <= key + 200:
 
-                print(f"{max_range} kukub {key} vahemikku")
+                #print(f"{max_range} kukub {key} vahemikku")
                 
                 for val in pair:
                     
@@ -850,7 +848,7 @@ def addParameterColumns(separated, type_string): #!!! siia jäi error
             if type_string == "MvsH":
                 
                 indices = series.index
-                series.loc[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
+                series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
                 unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],
                                         error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],
                                         momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
@@ -1021,38 +1019,23 @@ else:
     # except IndexError as ie:
     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    # copy1 = SEPARATED_MvsH
-    # print("##################")
-    # print(f"copy id:{hex(id(copy))}")
-    # print("##################")
-    # copytest = sortTest(SEPARATED_MvsH)
-    # print(">>>>>>>>>>>>>>>>>>>>")
-    # print(f"copytest id:{hex(id(copytest))}")
-    # print(">>>>>>>>>>>>>>>>>>>>")
-    #copy[0].append([5])
-    
-    
     #uncomment sortFieldValues if needed for correct max value in the measurement pair
-    sortFieldValues(MvsH_pair_indices)
+    #sortFieldValues(MvsH_pair_indices)
     
     SEPARATED_MvsH = sortTest(SEPARATED_MvsH)
-    hardcopy1 = copy.deepcopy(SEPARATED_MvsH)
     correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     
     interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
-    hardcopy2 = copy.deepcopy(SEPARATED_MvsH)
+    
     DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
-    # DICT_MvsH_copy = copy.deepcopy(DICT_MvsH) #copy for plotting before adding all other columns and unit row
     
     plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
     
     setColumnForType(MvsH_INDICES, "MvsH")
-    hardcopy3 = copy.deepcopy(SEPARATED_MvsH)
     addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
-    hardcopy4 = copy.deepcopy(SEPARATED_MvsH)
     appendAndSave(DICT_MvsH, "MvsH")
-    #SEPARATED_MvsH.append([5])
+
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 

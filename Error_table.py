@@ -6,15 +6,12 @@ Created on Mon Jun 19 13:45:38 2023
 """
 
 import os
-import statistics as stat
 import re
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import math
 import tkinter as tk
 from tkinter import filedialog
-from tkinter import simpledialog
+
 
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------

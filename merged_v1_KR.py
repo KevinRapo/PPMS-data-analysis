@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import tkinter as tk
+from tkinter import messagebox
 from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
@@ -18,8 +19,9 @@ import glob
 import math
 import copy
 import warnings
-USER_PATH = os.getcwd()
 
+
+USER_PATH = os.getcwd()
 
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
@@ -362,9 +364,14 @@ def sortTest(pairs):
         first = pair[0]
         # print(type(first))
         second = pair[1]#["Magnetic Field (Oe)"]
-        first_max = max(first["Magnetic Field (Oe)"])
-        second_max = max(second["Magnetic Field (Oe)"])
-        ratio = first_max/second_max
+        
+        try:
+            first_max = max(first["Magnetic Field (Oe)"])
+            second_max = max(second["Magnetic Field (Oe)"])
+            ratio = first_max/second_max
+        except ValueError:
+            error_message = "Change separationIndexForSingleSeries argument n for correct extrema points"
+            showExtremaError(error_message)
         
         # print(f"{first_max=}")
         # print(f"{second_max=}")
@@ -619,8 +626,9 @@ def filterMeasurementIndices(unfiltered_indices):
     
     return filtered
 
+
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, n = 25): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
 
@@ -646,6 +654,20 @@ def separationIndexForSingleSeries(data, column_name, n = 25): # https://stackov
     min_indices = index[relative_min_indices]
     max_indices = index[relative_max_indices]
     
+    #sort indices helper function
+    def removeSpecialCaseIndex():
+        nonlocal data, min_indices, max_indices
+        
+        if column_name == "Magnetic Field (Oe)":
+            first_index = min_indices[0]
+            first_val = data.loc[first_index, column_name]
+            print(f"{min_indices[0]=}")
+            print(f"{first_val=}")
+            if first_val < 1:
+                min_indices = min_indices[1:]
+                
+    removeSpecialCaseIndex()
+    
     # Create a DataFrame to store results
     local_peaks = pd.DataFrame(index=index)
     local_peaks['min'] = np.nan
@@ -661,9 +683,9 @@ def separationIndexForSingleSeries(data, column_name, n = 25): # https://stackov
     min_indices = local_peaks["min"].index[mask["min"]]
     
     # Plot results, tegelikult pole vaja, aga hea kontrollida kas tegi õigesti
-    plt.scatter(data.index, local_peaks['min'], c='r', label='Minima')
-    plt.scatter(data.index, local_peaks['max'], c='g', label='Maxima')
-    plt.plot(data.index, data[column_name], label=column_name)
+    plt.scatter(index, local_peaks['min'], c='r', label='Minima')
+    plt.scatter(index, local_peaks['max'], c='g', label='Maxima')
+    plt.plot(index, data[column_name], label=column_name)
     plt.title("Test title")
     plt.legend()
     plt.show()
@@ -896,6 +918,14 @@ def appendAndSave(dictionary, dType): #!!! siin salvestab ikka halva indeksi kaa
             i_pair = i_pair + 1
             
     return None
+
+def showExtremaError(message):
+    
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+
+    messagebox.showerror("Error", message)
+    
 #---------------Measurement errors----------------------------
 
 def BTypeMeasurementError(measurement_deviation):

@@ -11,13 +11,15 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import tkinter as tk
+from tkinter import messagebox
 from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-# import copy
+import copy
+
+
 
 USER_PATH = os.getcwd()
-
 
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
@@ -27,17 +29,40 @@ root.withdraw()
 
 
 #save_to_path = os.path.dirname(file_path)
-
-#ask for user input for a datafile        
+        
 def askNewDatafilePath():
+    """
+    ask for user input for a datafile
+
+    Returns
+    -------
+    file_path : string
+        file path for the measurement file
+
+    """
     
     file_path = filedialog.askopenfilename()
     
     return file_path
 
 
-#Read datafile form file_path, return header and data as pd df
 def readDatafile(file_path):
+    '''
+    Reads in the data file and separates the header and measurement info
+    
+    Parameters
+    ----------
+    file_path : string
+        file path for the measurement file
+
+    Returns
+    -------
+    header : pandas dataframe
+        header info   
+    data : pandas dataframe
+        measurement info
+
+    '''
     #Opens the selected data file
     with open(file_path, 'r') as f:
         i = 0 #Rowindex, how many rows until header 
@@ -55,16 +80,28 @@ def readDatafile(file_path):
     
     return header, data
 
-
-
-# determine if its VSM or ACMS datafile, return "token"
-# Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. IN VSM the columns is named Moment (emu), while in ACMS its named DC Moment (emu) 
+ 
 def determineDatafileType(header):
+    """
+    determine if its VSM or ACMS datafile
+    Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. IN VSM the columns is named Moment (emu), while in ACMS its named DC Moment (emu)
+
+    Parameters
+    ----------
+    header : pandas dataframe
+        measurement file header
+
+    Returns
+    -------
+    token : string
+        data file type
+
+    """
+    global option_specific_line, test_line
     #data_type checks from the first line under the header whether the file is VSM or ACMS and returns a token for further use
     token = "error - unknown datafile format"
     
-    option_specific_line = header['1'][1]
-    
+    option_specific_line = header.iloc[1, 0]
     
     if "VSM" in option_specific_line:
         print("\nThis is a VSM data file \n")
@@ -77,8 +114,24 @@ def determineDatafileType(header):
     return token
 
         
-# text parsing function to help with sample parameters
+
 def extractFloatWithUnit(string):
+    """
+    text parsing function to help with sample parameters
+
+    Parameters
+    ----------
+    string : string
+        The parameter string to examine.
+
+    Returns
+    -------
+    float_val : float
+        Sample parameter value.
+    unit : string
+        Sample parameter unit.
+
+    """
     #extract_float_with_unit function uses regex to index the input string
     #into a (float, unit) format if it has units, if no units (float, None) format, if no value (None)
     regex = r'^([\d.]+)\s*([a-zA-Z]+(\d)?)?$'# regular expression to match float value and unit
@@ -173,19 +226,24 @@ def getAreaCM2(header):
 #Parsed thickness
 def getThickness(data):
     #Checks whether the title contains sample thickness in nm units: e.g. "25nm" and outputs 25
-    thickness = data.iloc[3,1] #Title index in table
-    pattern = r"(\d+)\s*(nm)"
-    match = re.search(pattern,thickness)
-    if match:
-        float_str = match.group(1)
-        print(f"Checking thickness: {float_str} nm")
-        #unit = match.group(2)
-        float_val = float(float_str)*10**-7 # nm to cm conversion
-        print(f"Sample thickness is: {float_val} cm \n" )
-        return float_val
-    else:
-        print("Sample thickness not found in title \n")
+    try:
+        thickness = data.iloc[3,1] #Title index in table
+        pattern = r"(\d+)\s*(nm)"
+        match = re.search(pattern,thickness)
+        if match:
+            float_str = match.group(1)
+            print(f"Checking thickness: {float_str} nm")
+            #unit = match.group(2)
+            float_val = float(float_str)*10**-7 # nm to cm conversion
+            print(f"Sample thickness is: {float_val} cm \n" )
+            return float_val
+        else:
+            print("Sample thickness not found in title \n")
+            return None
+    except:
+        print("Sample thickness unknown Exeption \n")
         return None
+        
 
 
 #---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -193,11 +251,11 @@ def getThickness(data):
 # Recognizes what measurement types are present in the file. Returns two Pandas.Series: temperatures_of_interest, magnetic_fields_of_interest
 # Mida peaks tagastama errori korral?
 
-def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
+def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, min_count = 5):
     #Checks what measurements the file contains
-       
+    
     rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
-    rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=1)
+    rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=0)
     
     #returnitavad Seried
     magnetic_fields_of_interest = pd.Series(dtype=float)
@@ -207,6 +265,8 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
     tempCount = rounded_dataset_T.value_counts()
     fieldCount = rounded_dataset_H.value_counts()
     
+    # tempCount = tempCount[tempCount > min_count]
+    # fieldCount = fieldCount[fieldCount > min_count]
     
     codes_T, uniques_T = pd.factorize(rounded_dataset_T)
     codes_H, uniques_H = pd.factorize(rounded_dataset_H)
@@ -214,7 +274,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
     ratio_T = uniques_T.size/rounded_dataset_T.size
     ratio_H = uniques_H.size/rounded_dataset_H.size
     print(f"T : {ratio_T}, H : {ratio_H }")
-
+    
     
     if ratio_T < discrete_detection_ration: #discrete
     
@@ -232,8 +292,8 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
         if ratio_H < discrete_detection_ration: #discrete
 
             print("T continous, H discrete = MvsT \n")
+            fieldCount = fieldCount[fieldCount > min_count]
             magnetic_fields_of_interest = pd.concat([magnetic_fields_of_interest,pd.Series(fieldCount.index.values)], ignore_index = True)
-        
         else: #continous
 
             print("T continous, H continous = both \n")
@@ -241,7 +301,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02):
             meanTempCount=tempCount.mean()                     #see osa siin annab segafailide puhul mõistlikud numbrid. Aga mõne erilisema faili korral ei saa ta aru et sega fail on, aga need read annavad ka siis mõistlikud numbrid. Äkki saame kuidagi hoopis neid prinditavaid liste kasutada faili ära tundmiseks.
             muutuja = rounded_dataset_T.value_counts() > meanTempCount*10
             temperatures_of_interest = pd.Series(rounded_dataset_T.value_counts()[muutuja].index.values)
-            
+            print("meanTempCount",meanTempCount)
             meanFieldCount=fieldCount.mean()
             muutuja2 = rounded_dataset_H.value_counts() > meanFieldCount*10
             magnetic_fields_of_interest = pd.Series(rounded_dataset_H.value_counts()[muutuja2].index.values)
@@ -267,13 +327,89 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
         
     return all_indices #filtered_dfs
 
+# #sorting function for max H value/HETKEL EI OLE VAJA SEDA
+# def sortFieldValues(pair_indices):
+#     # pair_indices = copy.deepcopy(pair_indices_original)
+#     # copy_list = []
+    
+#     for pair in pair_indices:
+#         first_idx = pair[0]
+#         first_val = ORIGINAL_DATAFRAME.loc[first_idx, "Magnetic Field (Oe)"]
+
+#         #print(f"{first_val=}\n")
+        
+#         while pair:
+#             idx = pair[-1]
+#             #print(f"{idx=}")
+#             val_to_compare = ORIGINAL_DATAFRAME.loc[idx, "Magnetic Field (Oe)"]
+#             #print(f"{val_to_compare=}")
+            
+#             if val_to_compare < first_val:
+#                 break
+            
+#             pair.pop()
+#             # print(f"{popped=}")
+            
+#     return None
+
+def sortTest(pairs):
+    # global first, second
+    new_pairs = []
+
+    for pair in pairs:
+        # first1 = pair[0]#["Magnetic Field (Oe)"]
+        # first = first1.copy()
+        first = pair[0]
+        # print(type(first))
+        second = pair[1]#["Magnetic Field (Oe)"]
+        
+        try:
+            first_max = max(first["Magnetic Field (Oe)"])
+            second_max = max(second["Magnetic Field (Oe)"])
+            ratio = first_max/second_max
+        except ValueError:
+            error_message = "Change separationIndexForSingleSeries argument n for correct extrema points"
+            showExtremaError(error_message)
+        
+        # print(f"{first_max=}")
+        # print(f"{second_max=}")
+        # print(f"{ratio=}\n")
+        new_list = []
+        #print(f"{ratio=}")
+        while not 0.9 < ratio < 1.1:
+            if ratio < 0.9:
+
+                second = second[:-1]
+                ratio = first_max/max(second["Magnetic Field (Oe)"])
+                #print(f"{ratio=}")
+                
+            elif ratio > 1.1:
+
+                second = second[:-1]
+                break
+
+        new_list.append(first)
+        new_list.append(second)
+        new_pairs.append(new_list)
+        
+    return new_pairs
+
 #Rounds the min/max field for each MvsH correction
-def roundFieldForCorrection(indices):
+def roundFieldForCorrection(pairs):
     #rounds the magnetic field to a nice number (100041.221 -> 100000)
     values = []
-    for indx in indices:
-        MvsH = ORIGINAL_DATAFRAME["Magnetic Field (Oe)"].loc[indx]
-        max_range = max(MvsH)
+    for pair in pairs:
+        first_max = max(pair[0]["Magnetic Field (Oe)"])
+        second_max = max(pair[1]["Magnetic Field (Oe)"])
+        max_range = None
+        
+        # print(f"{first_max=}")
+        # print(f"{second_max=}")
+        if first_max > second_max:
+            max_range = first_max
+        elif first_max < second_max:
+            max_range = second_max
+            
         if max_range >= 10000:
             nr = round(max_range / 1000) * 1000
         elif max_range >= 1000:
@@ -286,21 +422,28 @@ def roundFieldForCorrection(indices):
         
     return values
 
-
 def searchCorrectionTable(folder_path, number):
-    #searches for the right table based on the value in the title and returns the filepath
+    closest_match = None
+    min_difference = float('inf')  # Initialize with positive infinity
     
     for filename in os.listdir(folder_path):
-        # Split the filename on a specific character, e.g., underscore
-        parts = filename.split('_') # Modify this based on your file naming convention
-        # Check if the number is an exact match in any part of the filename
+        parts = filename.split('_')  # Modify this based on your file naming convention
+        try:
+            value = int(parts[1])
+            difference = abs(number - value)
+            if difference < min_difference:
+                min_difference = difference
+                closest_match = filename
+        except (ValueError, IndexError):
+            # Ignore filenames that don't have a numeric part or invalid parts
+            pass
         
-        if str(number) in parts:
-            file_path = os.path.join(folder_path, filename)
-            return file_path
-        
-    return None
+    if closest_match:
+        return os.path.join(folder_path, closest_match)
+    else:
+        return None
 
+    
 CORRECTION_FOLDER_PATH = os.path.join(USER_PATH,'PdCorrection tables')
 
 def CorrectionTableToDict(numbers_to_search):
@@ -331,20 +474,35 @@ def interpolateTrueField(magnetic_field_values, error_table_measurements):
 
 def interpolateMvsH(separated_MvsH, error_tables):
     #Adds the true field values column to the existing measurement dataframes
-    
+    global true_field_interpolated, val
     interpolated_dict = {}
-    for val_pair in separated_MvsH:
-        max_val = max(val_pair[0]["Magnetic Field (Oe)"]) # [0] ei pruugi alati õige max anda
+    for pair in separated_MvsH:
         
+        # max_val = max(val_pair[0]["Magnetic Field (Oe)"]) # [0] ei pruugi alati õige max anda
+        # print("max val",max_val)
+        
+        first_max = max(pair[0]["Magnetic Field (Oe)"])
+        second_max = max(pair[1]["Magnetic Field (Oe)"])
+        max_range = None
+        
+        # print(f"{first_max=}")
+        # print(f"{second_max=}")
+        if first_max > second_max:
+            max_range = first_max
+        elif first_max < second_max:
+            max_range = second_max
+            
         for key in error_tables:
-            if max_val - 100 <= key <= max_val + 100:
-                #print(f"{key} kukub {max_val} vahemikku")
+            if key - 200 <= max_range <= key + 200:
+
+                #print(f"{max_range} kukub {key} vahemikku")
                 
-                for val in val_pair:
+                for val in pair:
                     
                     magnetic_field_values = val["Magnetic Field (Oe)"]
+                    # print(len(magnetic_field_values))
                     true_field_interpolated = interpolateTrueField(magnetic_field_values, error_tables[key])
-                    
+                    # print(len(true_field_interpolated))
                     val["True Field (Oe)"] = true_field_interpolated
                                 
     return interpolated_dict
@@ -354,6 +512,8 @@ def plotMvsH(raamat, const_T_values):
     
     for key1 in raamat:
         
+        i_pair = 1
+        
         for df in raamat[key1]:
             
             fig, ax = plt.subplots()
@@ -362,16 +522,20 @@ def plotMvsH(raamat, const_T_values):
             H2 = df[1]["Magnetic Field (Oe)"]
             M2 = df[1]["Moment (emu)"] 
             
-            colorIdx = df[1].iloc[1].name
+            colorIdx = df[0].iloc[1].name
+            
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
-            H1_true = df[0]["True Field (Oe)"]
-            H2_true = df[1]["True Field (Oe)"]   
+            if "True Field (Oe)" in df[0]:
+                
+                H1_true = df[0]["True Field (Oe)"]
+                H2_true = df[1]["True Field (Oe)"]   
+                ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
+                ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
             
-            ax.plot(H1 ,M1, color = "grey", label = "Descending") 
+            ax.plot(H1 ,M1, color = "grey", label = "Descending")#!!! mis siin värvidega jääb
             ax.plot(H2, M2, color = "grey", label = "Ascending")
-            ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
-            ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
+            
             
             const_val = int(key1)
             
@@ -382,7 +546,8 @@ def plotMvsH(raamat, const_T_values):
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
             ax.grid(True)
             #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
-            fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K.png'),bbox_inches = "tight", dpi = 200) #PC
+            fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K_{i_pair}.png'),bbox_inches = "tight", dpi = 200) #PC
+            i_pair = i_pair + 1
             plt.show()
         
     return None
@@ -405,10 +570,11 @@ def plotMvsT(raamat, const_H_values):
     #Plots the MvsT measurement pair with different colors
    
     for key in raamat:
-        
+        fig, ax = plt.subplots()
+        i_pair = 1
         for df in raamat[key]:
 
-            fig, ax = plt.subplots()
+            
             T1 = df[0]["Temperature (K)"]
             M1 = df[0]["Moment (emu)"]
             T2 = df[1]["Temperature (K)"] if len(df) > 1 else None
@@ -417,15 +583,16 @@ def plotMvsT(raamat, const_H_values):
             colorIdx = df[0].iloc[0].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
-            ax.plot(T1,M1,color = Color, label = "Ascending", alpha = 0.5) # peaks tegelt kontrollima kas kasvab või kahaneb
-            ax.plot(T2,M2,color = Color, label = "Descending") if len(df) > 1 else None #, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
+            ax.plot(T1,M1,color = Color, label = f"Ascending {i_pair}", alpha = 0.5) # peaks tegelt kontrollima kas kasvab või kahaneb
+            ax.plot(T2,M2,color = Color, label = f"Descending {i_pair}") if len(df) > 1 else None #, marker = "o") #descending ei pea paika kui on alt üle > alt üles mõõtmine
             ax.set_title(f"M vs T at {key} Oe")
             ax.set_xlabel("Temperature (K)")
             ax.set_ylabel("Moment (emu)")
             ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
             ax.grid(True)
-            fig.savefig(os.path.join(folder_name,f'MvsT_graph_at_{key}K.png'),bbox_inches = "tight", dpi = 200)
-            plt.show()
+            i_pair = i_pair + 1
+        fig.savefig(os.path.join(folder_name,f'MvsT_graph_at_{key}K.png'),bbox_inches = "tight", dpi = 200)
+        plt.show()
         
     return None
 
@@ -457,8 +624,9 @@ def filterMeasurementIndices(unfiltered_indices):
     
     return filtered
 
+
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, n = 25): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Find local peaks indices (maxima and minima) in a DataFrame or Series.
 
@@ -484,6 +652,20 @@ def separationIndexForSingleSeries(data, column_name, n = 25): # https://stackov
     min_indices = index[relative_min_indices]
     max_indices = index[relative_max_indices]
     
+    #sort indices helper function
+    def removeSpecialCaseIndex():
+        nonlocal data, min_indices, max_indices
+        
+        if column_name == "Magnetic Field (Oe)":
+            first_index = min_indices[0]
+            first_val = data.loc[first_index, column_name]
+            print(f"{min_indices[0]=}")
+            print(f"{first_val=}")
+            if first_val < 1:
+                min_indices = min_indices[1:]
+                
+    removeSpecialCaseIndex()
+    
     # Create a DataFrame to store results
     local_peaks = pd.DataFrame(index=index)
     local_peaks['min'] = np.nan
@@ -499,9 +681,10 @@ def separationIndexForSingleSeries(data, column_name, n = 25): # https://stackov
     min_indices = local_peaks["min"].index[mask["min"]]
     
     # Plot results, tegelikult pole vaja, aga hea kontrollida kas tegi õigesti
-    plt.scatter(data.index, local_peaks['min'], c='r', label='Minima')
-    plt.scatter(data.index, local_peaks['max'], c='g', label='Maxima')
-    plt.plot(data.index, data[column_name], label=column_name)
+    plt.scatter(index, local_peaks['min'], c='r', label='Minima')
+    plt.scatter(index, local_peaks['max'], c='g', label='Maxima')
+    plt.plot(index, data[column_name], label=column_name)
+    plt.title("Test title")
     plt.legend()
     plt.show()
         
@@ -647,7 +830,7 @@ def setColumnForType(indices, type_string):
     return None
 
 
-def addParameterColumns(separated, type_string):
+def addParameterColumns(separated, type_string): #!!! siia jäi error
     
     temp = "Temperature (K)"
     temp_unit = "K"
@@ -677,6 +860,7 @@ def addParameterColumns(separated, type_string):
     volume = SAMPLE_AREA_CM2*THICKNESS if SAMPLE_AREA_CM2 and THICKNESS else None
 
     unit_row = None
+    
     for i ,pair in enumerate(separated):
         
         for j, series in enumerate(pair):
@@ -685,22 +869,22 @@ def addParameterColumns(separated, type_string):
                 
                 indices = series.index
                 series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
-                unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],\
-                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],\
+                unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],
+                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],
                                         momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
                 
             elif type_string == "MvsT":
                 
                 indices = series.index
                 series[field] = ORIGINAL_DATAFRAME.loc[indices, field]
-                unit_row = pd.DataFrame({ temp: [temp_unit], moment: [moment_unit], field: [field_unit],\
-                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],\
+                unit_row = pd.DataFrame({ temp: [temp_unit], moment: [moment_unit], field: [field_unit],
+                                        error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],
                                         momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
-                
-            series[error] = ORIGINAL_DATAFRAME.loc[indices, error]
+            
+            series[ error] = ORIGINAL_DATAFRAME.loc[indices, error]
             series[momentDivMass] = series[moment]/SAMPLE_MASS_g if SAMPLE_MASS_g else None
-            series[momentDivArea] = series[moment]/SAMPLE_AREA_CM2 if SAMPLE_AREA_CM2 else None
-            series[momentDivVolume] = series[moment]/volume if volume else None
+            series[ momentDivArea] = series[moment]/SAMPLE_AREA_CM2 if SAMPLE_AREA_CM2 else None
+            series[ momentDivVolume] = series[moment]/volume if volume else None
             series[susceptibility] = series[moment]/(SAMPLE_MASS_g*series[field]) if SAMPLE_MASS_g else None
             series[oneOverSusceptibility] = 1/(series[moment]/(SAMPLE_MASS_g*series[field])) if SAMPLE_MASS_g else None
             
@@ -711,34 +895,70 @@ def addParameterColumns(separated, type_string):
         
     return None
 
-def appendAndSave(dictionary, dType):
+# Siin on ka üks huvitav error kui file excelis avatud sama aeg siis ei luba uut üle salvestada
+def appendAndSave(dictionary, dType): #!!! siin salvestab ikka halva indeksi kaasa copy file puhul, pead kuidagi edaspidiseks salvestama uued indeksid
+    i_key = 1
     
     for key in dictionary:
-        
+
+        i_key = i_key + 1
+        i_pair = 1
         for pair in dictionary[key]:
             
-            result = pd.concat([pair[0], pair[1]])
+            result = pd.concat([pair[0], pair[1].tail(pair[1].shape[0]-1)])
             
-            file_name = f'{dType}_data_at_{key}.csv'
+            file_name = f'{dType}_data_at_{key}_{i_pair}.csv'
             
             full_path = os.path.join(folder_name, file_name)
             
             result.to_csv(full_path, index = False)
             
+            i_pair = i_pair + 1
+            
     return None
+
+def showExtremaError(message):
+    
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+
+    messagebox.showerror("Error", message)
+    
+#---------------Measurement errors----------------------------
+
+def BTypeMeasurementError(measurement_deviation):
+    StudentFactor = 2 #Inf, reliability = 0.95
+    formula = (StudentFactor/3)*measurement_deviation
+    return formula
+
+def momentDivDimensionUncertaintyError(separated, dimension, measurement_deviation):
+    
+    for pair in separated:
+        
+        for df in pair:
+            
+            momentStdError = df["M. Std. Err. (emu)"].iloc[1:]
+            moment = df["Moment (emu)"].iloc[1:]
+            # momentDivMassError = math.sqrt(((1/SAMPLE_MASS_g)*momentStdError)**2+((-moment/SAMPLE_MASS_g**2)*momentStdError)**2)
+            momentDivMassError = (((1/dimension)*momentStdError)**2 + 
+                                  ((-moment/dimension**2)*measurement_deviation)**2)**0.5
+            df["Error test"] = momentDivMassError
+    return None
+
 #-------------- Actually Run the program here -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#!!!
+
 # Ask user input to get a path to datafile
 DATAFILE_PATH = askNewDatafilePath()
 save_to_path = os.path.dirname(DATAFILE_PATH)
 
 # Read the datafile
 HEADER, ORIGINAL_DATAFRAME = readDatafile(DATAFILE_PATH)
-
+ORIGINAL_COPY = copy.deepcopy(ORIGINAL_DATAFRAME)
 # VSM or ACMSII? or maybe HC or ETO in the future
 OPTION_TYPE = determineDatafileType(HEADER)
 #print(OPTION_TYPE) kas teha nii et funk ise ei prindi ja prindid kui tahad või funktsioon prindib anyway?
+
 
 #Selle lisasin juurde kuna moment tulbas võib olla nan values ja enne pead kõik õiged tulbad võtma, et need eraldada, muidu eemaldab kõik read,
 # sest igas reas on mingi tulp nan value'ga
@@ -747,17 +967,19 @@ if OPTION_TYPE == "VSM":
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
     
 elif OPTION_TYPE == "ACMS":
-    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "DC Moment (emu)", "M. Std. Err. (emu)"]].dropna()
+    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "DC Moment (emu)", "DC Std. Err. (emu)"]].dropna()
+    ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.rename(columns={"DC Moment (emu)": "Moment (emu)", "DC Std. Err. (emu)": "M. Std. Err. (emu)"})
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
 
 #parse HEADER
 SAMPLE_MASS_g = getMassInGrams(HEADER)
 SAMPLE_AREA_CM2 = getAreaCM2(HEADER)
+#siin peaks olema try ja catch exepction ümber
 THICKNESS = getThickness(HEADER)
 
 
 #Color list for color idx and initializing the starting color idx with just black
-COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange"]
+COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange", "pink", "olive"]
 ORIGINAL_DATAFRAME["color"] = "black"
 
 print("_________chechMeasurementType2-----------")  #mis peaks olema selle funktsiooni ebaõnnestumise/veateade? return None? või lihtsalt kaks tühja Seriet?
@@ -790,57 +1012,58 @@ else:
     
     separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")# the indices where the separation is going to be done
     
-    try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
-        SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
-    except IndexError as ie:
-        raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+    #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
+    SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+    # except IndexError as ie:
+    #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
         
     DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
     
     plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
     
     setColumnForType(MvsT_INDICES, "MvsT")
-    addParameterColumns(SEPARATED_MvsT, "MvsT")
+    addParameterColumns(SEPARATED_MvsT, "MvsT")#this function modifies SEPARATED_MvsT which inturn modifies DICT_MvsT since it's a global mutable variable
     appendAndSave(DICT_MvsT, "MvsT")
     
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
-
+#!!!
 if TEMPERATURES_OF_INTEREST.size <= 0:
     print('no MvsH detected')
+     
     
 else:
     print(' MvsH data detected')
     print(TEMPERATURES_OF_INTEREST)
     
-    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
+    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST, bound = 1)
     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     
     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
     
-    try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
-        SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
-    except IndexError as ie:
-        raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+    #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
+    SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
+    # except IndexError as ie:
+    #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
+    #uncomment sortFieldValues if needed for correct max value in the measurement pair
+    #sortFieldValues(MvsH_pair_indices)
     
-    correction_field_value = roundFieldForCorrection(MvsH_pair_indices)
+    SEPARATED_MvsH = sortTest(SEPARATED_MvsH)
+    correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     
     interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
     
     DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
-    # DICT_MvsH_copy = copy.deepcopy(DICT_MvsH) #copy for plotting before adding all other columns and unit row
     
     plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
     
     setColumnForType(MvsH_INDICES, "MvsH")
-    
-    
-    addParameterColumns(SEPARATED_MvsH, "MvsH")
+    addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
     appendAndSave(DICT_MvsH, "MvsH")
-    
+
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 
@@ -849,30 +1072,12 @@ if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')
 
 
-
 #Plots temp, field and moment against time
 plotMeasurementTimeseries()
 
-# #creates a column "Type" for each data point type
-# ORIGINAL_DATAFRAME["Type"] = ""
-# setColumnForType(MvsT_INDICES, "MvsT")
-# setColumnForType(MvsH_INDICES, "MvsH")
 
-# #Adds and calculates all columns of interest to each separate measurement cycle
-# addParameterColumns(SEPARATED_MvsH, "MvsH")
-# addParameterColumns(SEPARATED_MvsT, "MvsT")
+#Error       
+# momentDivDimensionUncertaintyError(SEPARATED_MvsH, SAMPLE_MASS_g, 0.0001) #for moment/mass uncertainty
 
-
-# #Saves the measurement csv files
-# appendAndSave(DICT_MvsH, "MvsH") #KORRAKS OLI MINGI PERMISSION ERROR AGA HETKEL EI OSKA DUBLEERIDA SEDA
-# appendAndSave(DICT_MvsT, "MvsT")
-
-
-# # Check if the folder already exists
-# if not os.path.exists(folder_name):
-#     # If it doesn't exist, create it
-#     os.makedirs(folder_name)
-# else:
-#     print(f"New folder '{folder_name}' already exists. \n\nIf you would like to create a new folder for the same file you can add something to the end of *folder_name* variable ")
 
 

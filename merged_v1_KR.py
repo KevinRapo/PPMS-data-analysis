@@ -15,10 +15,8 @@ from tkinter import messagebox
 from tkinter import filedialog
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-import glob
-import math
 import copy
-import warnings
+
 
 
 USER_PATH = os.getcwd()
@@ -29,8 +27,6 @@ root = tk.Tk()
 root.wm_attributes('-topmost', 1)
 root.withdraw()
 
-
-#save_to_path = os.path.dirname(file_path)
         
 def askNewDatafilePath():
     """
@@ -86,7 +82,8 @@ def readDatafile(file_path):
 def determineDatafileType(header):
     """
     determine if its VSM or ACMS datafile
-    Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. IN VSM the columns is named Moment (emu), while in ACMS its named DC Moment (emu)
+    Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. 
+    In VSM the column is named Moment (emu), while in ACMS its named DC Moment (emu)
 
     Parameters
     ----------
@@ -99,8 +96,7 @@ def determineDatafileType(header):
         data file type
 
     """
-    global option_specific_line, test_line
-    #data_type checks from the first line under the header whether the file is VSM or ACMS and returns a token for further use
+
     token = "error - unknown datafile format"
     
     option_specific_line = header.iloc[1, 0]
@@ -120,7 +116,10 @@ def determineDatafileType(header):
 def extractFloatWithUnit(string):
     """
     text parsing function to help with sample parameters
-
+    
+    The function uses regex to index the input string
+    into a (float, unit) format if it has units, if no units (float, None) format, if no value (None)
+    
     Parameters
     ----------
     string : string
@@ -134,8 +133,7 @@ def extractFloatWithUnit(string):
         Sample parameter unit.
 
     """
-    #extract_float_with_unit function uses regex to index the input string
-    #into a (float, unit) format if it has units, if no units (float, None) format, if no value (None)
+
     regex = r'^([\d.]+)\s*([a-zA-Z]+(\d)?)?$'# regular expression to match float value and unit
     match = re.search(regex, string)
     
@@ -151,8 +149,26 @@ def extractFloatWithUnit(string):
     
 # text parsing function before   extractFloatWithUnit function, returns Header property value and unit
 def headerValueCheck(header, sample_property):
-    #header_value_check checks the value of interest, is the value nan or is it just a string in 
-    #the wrong format, otherwise outputs the float value
+    """
+    checks the value of interest, is the value nan or is it just a string in the wrong format,
+    otherwise outputs the float value
+    
+    Parameters
+    ----------
+    header : PANDAS DATAFRAME
+        MEASUREMENT FILE HEADER.
+    sample_property : STRING
+        PROPERTY TO CHECK.
+
+    Returns
+    -------
+    float_val : TYPE
+        DESCRIPTION.
+    TYPE
+        DESCRIPTION.
+
+    """
+    
     header_column = header['2']
 
     print(f"Checking:{sample_property}, {header_column[sample_property]}")#Hetkel jääb
@@ -177,6 +193,21 @@ def headerValueCheck(header, sample_property):
 
 #returned parsed MASS from Header
 def getMassInGrams(header):
+    """
+    
+
+    Parameters
+    ----------
+    header : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    
     #If the mass > 1, indicating that it's input is in mg, divides it by a 1000 to get g
     parameter = "SAMPLE_MASS"
     
@@ -329,30 +360,6 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
         
     return all_indices #filtered_dfs
 
-# #sorting function for max H value/HETKEL EI OLE VAJA SEDA
-# def sortFieldValues(pair_indices):
-#     # pair_indices = copy.deepcopy(pair_indices_original)
-#     # copy_list = []
-    
-#     for pair in pair_indices:
-#         first_idx = pair[0]
-#         first_val = ORIGINAL_DATAFRAME.loc[first_idx, "Magnetic Field (Oe)"]
-
-#         #print(f"{first_val=}\n")
-        
-#         while pair:
-#             idx = pair[-1]
-#             #print(f"{idx=}")
-#             val_to_compare = ORIGINAL_DATAFRAME.loc[idx, "Magnetic Field (Oe)"]
-#             #print(f"{val_to_compare=}")
-            
-#             if val_to_compare < first_val:
-#                 break
-            
-#             pair.pop()
-#             # print(f"{popped=}")
-            
-#     return None
 
 def sortTest(pairs):
     # global first, second
@@ -518,15 +525,17 @@ def plotMvsH(raamat, const_T_values):
         
         for df in raamat[key1]:
             
+            colorIdx = df[0].iloc[1].name
+            Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
+            
             fig, ax = plt.subplots()
             H1 = df[0]["Magnetic Field (Oe)"]
             M1 = df[0]["Moment (emu)"]
             H2 = df[1]["Magnetic Field (Oe)"]
             M2 = df[1]["Moment (emu)"] 
             
-            colorIdx = df[0].iloc[1].name
-            
-            Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
+            ax.plot(H1 ,M1, color = "grey", label = "Descending")#!!! mis siin värvidega jääb
+            ax.plot(H2, M2, color = "grey", label = "Ascending")
             
             if "True Field (Oe)" in df[0]:
                 
@@ -534,10 +543,6 @@ def plotMvsH(raamat, const_T_values):
                 H2_true = df[1]["True Field (Oe)"]   
                 ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
                 ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
-            
-            ax.plot(H1 ,M1, color = "grey", label = "Descending")#!!! mis siin värvidega jääb
-            ax.plot(H2, M2, color = "grey", label = "Ascending")
-            
             
             const_val = int(key1)
             
@@ -654,17 +659,21 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
     min_indices = index[relative_min_indices]
     max_indices = index[relative_max_indices]
     
+    title = ""
     #sort indices helper function
     def removeSpecialCaseIndex():
-        nonlocal data, min_indices, max_indices
-        
-        if column_name == "Magnetic Field (Oe)":
-            first_index = min_indices[0]
-            first_val = data.loc[first_index, column_name]
-            print(f"{min_indices[0]=}")
-            print(f"{first_val=}")
-            if first_val < 1:
-                min_indices = min_indices[1:]
+        nonlocal data, min_indices, max_indices, title
+
+        if column_name == "Magnetic Field (Oe)": #!!! hetkel probleem kui mõõtmine on mõeldud algama 0 väljast siis tuleb error
+            
+            if not len(max_indices) == 1:
+                title = "(Esimene min indeks eemaldatud)"
+                first_index = min_indices[0]
+                first_val = data.loc[first_index, column_name]
+                print(f"{min_indices[0]=}")
+                print(f"{first_val=}")
+                if -1 < first_val < 1:
+                    min_indices = min_indices[1:]
                 
     removeSpecialCaseIndex()
     
@@ -686,7 +695,7 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
     plt.scatter(index, local_peaks['min'], c='r', label='Minima')
     plt.scatter(index, local_peaks['max'], c='g', label='Maxima')
     plt.plot(index, data[column_name], label=column_name)
-    plt.title("Test title")
+    plt.title(f"Test title \n {title}")
     plt.legend()
     plt.show()
         
@@ -707,13 +716,15 @@ def separationIndexForMultipleSeries(indices, column_name):
 def separateMeasurementWithColorIdx(separation_index, measurement_indices, column):
     #Separates the points based on the separation indices and returns the separated series in pairs
     #Assigns a unique color to each pair
-
+    
+    # global min_index_list, j
     separated_pair = []
     pair_indices = []
     
     if not isinstance(separation_index, list):
         separation_index = [separation_index]
     
+    k = 0
     for min_max_index in separation_index:
         
         if min_max_index[0][0] < min_max_index[1][0]: #kontroll selleks et kas andmed on + - + või - + -
@@ -739,21 +750,22 @@ def separateMeasurementWithColorIdx(separation_index, measurement_indices, colum
                     sliced1 = tabel.loc[min_index_list[j]:max_index] #paaride data
                     separated.append(sliced1)
                     
-                    ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index, "color"] = COLORS[0] #värvid paaridele
+                    # print(COLORS[0])
+                    ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index, "color"] = COLORS[k] #värvid paaridele
                     
                     index1 = ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index].index.tolist() #paaride indeksid
                     
                     if j == len(min_index_list) - 1:
                         sliced2 = tabel.loc[max_index+1:min_index_list[j]]
                         
-                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j], "color"] = COLORS[0]
+                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j], "color"] = COLORS[k]
                         
                         index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j]].index.tolist()
                         
                     else:
                         sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
                         
-                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1], "color"] = COLORS[0]
+                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1], "color"] = COLORS[k]
                         
                         index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1]].index.tolist()
                 else:
@@ -765,8 +777,13 @@ def separateMeasurementWithColorIdx(separation_index, measurement_indices, colum
                 separated.append(sliced2)
                 separated_pair.append(separated)
                 
-                COLORS.pop(0)
+                #COLORS.pop(0)
+                # print("k:", k)
+                # print(f"{len(COLORS)}")
+                k += 1
                 j += 1
+                if k == len(COLORS):
+                    k = 0
         
     return separated_pair, pair_indices
 
@@ -805,15 +822,17 @@ def plotMeasurementTimeseries():
     # Plot data on each subplot
     time_axis = "Time Stamp (sec)"
     ORIGINAL_DATAFRAME.plot(x=time_axis, y="Temperature (K)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[0])
-    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Moment (emu)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[1])
-    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Magnetic Field (Oe)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[2])
+    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Magnetic Field (Oe)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[1])
+    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Moment (emu)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[2])
     
     # Customize axes labels and other properties
     
-    axes[0].set_ylabel("Temperature (K)")
-    axes[1].set_ylabel("Moment (emu)")
-    axes[2].set_ylabel("Magnetic Field (Oe)")
+    axes[0].set_ylabel("Temperature (K)", fontsize = 8)
+    axes[1].set_ylabel("Magnetic Field (Oe)", fontsize = 8)
+    axes[1].tick_params(axis = "y", labelsize = 8)
+    axes[2].set_ylabel("Moment (emu)", fontsize = 8)
     axes[-1].set_xlabel("Time Stamp (sec)")
+    fig.suptitle("Timeseries \n (black dots are discarded from individual plots)", fontsize = 10)
     
     fig.savefig(os.path.join(folder_name,'timeseries.png'),bbox_inches = "tight", dpi = 200)
     
@@ -832,7 +851,7 @@ def setColumnForType(indices, type_string):
     return None
 
 
-def addParameterColumns(separated, type_string): #!!! siia jäi error
+def addParameterColumns(separated, type_string):
     
     temp = "Temperature (K)"
     temp_unit = "K"
@@ -898,7 +917,7 @@ def addParameterColumns(separated, type_string): #!!! siia jäi error
     return None
 
 # Siin on ka üks huvitav error kui file excelis avatud sama aeg siis ei luba uut üle salvestada
-def appendAndSave(dictionary, dType): #!!! siin salvestab ikka halva indeksi kaasa copy file puhul, pead kuidagi edaspidiseks salvestama uued indeksid
+def appendAndSave(dictionary, dType):
     i_key = 1
     
     for key in dictionary:
@@ -968,7 +987,7 @@ if OPTION_TYPE == "VSM":
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "Moment (emu)", "M. Std. Err. (emu)"]].dropna()
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
     
-elif OPTION_TYPE == "ACMS":
+elif OPTION_TYPE == "ACMS": #!!! siia veel eraldi check et kas AC või DC
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "DC Moment (emu)", "DC Std. Err. (emu)"]].dropna()
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.rename(columns={"DC Moment (emu)": "Moment (emu)", "DC Std. Err. (emu)": "M. Std. Err. (emu)"})
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
@@ -981,7 +1000,7 @@ THICKNESS = getThickness(HEADER)
 
 
 #Color list for color idx and initializing the starting color idx with just black
-COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange", "pink", "olive"]
+COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange", "pink", "olive", "magenta"]
 ORIGINAL_DATAFRAME["color"] = "black"
 
 print("_________chechMeasurementType2-----------")  #mis peaks olema selle funktsiooni ebaõnnestumise/veateade? return None? või lihtsalt kaks tühja Seriet?
@@ -1049,8 +1068,6 @@ else:
     # except IndexError as ie:
     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    #uncomment sortFieldValues if needed for correct max value in the measurement pair
-    #sortFieldValues(MvsH_pair_indices)
     
     SEPARATED_MvsH = sortTest(SEPARATED_MvsH)
     correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)

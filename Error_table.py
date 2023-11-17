@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 import tkinter as tk
 from tkinter import filedialog
-
+import matplotlib.pyplot as plt
 
 #-------------- OPENING THE FILE AND INDEXING IT -------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
@@ -113,17 +113,11 @@ true_field = moment/(PdStd_susceptibility*mass)
 true_field.name = "True Field (Oe)"
 
 pd_table = pd.concat([field, true_field], axis=1)
+pd_table["Field correction"] = field-true_field
 
 val = pd_table["Magnetic Field (Oe)"]
 
-def digits_to_decimal(number):
-    number_str = str(number)
-    decimal_index = number_str.find('.')
-    if decimal_index != -1:
-        return decimal_index
-    else:
-        return len(number_str)
-
+#-----
 def round_H_to_even_round_number(val):
     number = max(val)
     if number >= 10000:
@@ -138,10 +132,18 @@ def round_H_to_even_round_number(val):
 max_range = round_H_to_even_round_number(val)
 print("Range:",max_range)
 
+
 pd_table.to_csv(os.path.join(os.getcwd(),f"PdCorrection tables\\PdCal_{max_range}_Oe.csv"))
 
 
+plt.plot(pd_table["Magnetic Field (Oe)"], pd_table["Field correction"], "-o")
+plt.title(f"Corretion vs Field at {max_range} Oe")
+plt.xlabel("Magnetic Field (Oe)")
+plt.ylabel("Correction")
 
+plt.savefig(os.path.join(os.getcwd(),f"PdCorrection tables\\PdCal_{max_range}_Oe.png"),
+                         dpi = 300,
+                         bbox_inches = "tight")
 
 
 

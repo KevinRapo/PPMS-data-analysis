@@ -34,7 +34,7 @@ def askNewDatafilePath():
 
     Returns
     -------
-    file_path : string
+    file_path : STRING
         file path for the measurement file
 
     """
@@ -50,15 +50,15 @@ def readDatafile(file_path):
     
     Parameters
     ----------
-    file_path : string
+    file_path : STRING
         file path for the measurement file
 
     Returns
     -------
-    header : pandas dataframe
+    header : PANDAS DATAFRAME
         header info   
-    data : pandas dataframe
-        measurement info
+    data : PANDAS DATAFRAME
+        measurement data
 
     '''
     #Opens the selected data file
@@ -81,19 +81,20 @@ def readDatafile(file_path):
  
 def determineDatafileType(header):
     """
-    determine if its VSM or ACMS datafile
+    Determine if its VSM or ACMS datafile.
+    
     Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. 
     In VSM the column is named Moment (emu), while in ACMS its named DC Moment (emu)
 
     Parameters
     ----------
-    header : pandas dataframe
-        measurement file header
+    header : PANDAS DATAFRAME
+        Measurement file header
 
     Returns
     -------
-    token : string
-        data file type
+    token : STRING
+        Data file type
 
     """
 
@@ -110,73 +111,74 @@ def determineDatafileType(header):
         token = "ACMS"
         
     return token
-
-        
-
-def extractFloatWithUnit(string):
-    """
-    text parsing function to help with sample parameters
-    
-    The function uses regex to index the input string
-    into a (float, unit) format if it has units, if no units (float, None) format, if no value (None)
-    
-    Parameters
-    ----------
-    string : string
-        The parameter string to examine.
-
-    Returns
-    -------
-    float_val : float
-        Sample parameter value.
-    unit : string
-        Sample parameter unit.
-
-    """
-
-    regex = r'^([\d.]+)\s*([a-zA-Z]+(\d)?)?$'# regular expression to match float value and unit
-    match = re.search(regex, string)
-    
-    if match:
-        float_str = match.group(1)
-        unit = match.group(2)
-        float_val = float(float_str)
-        print(f"SAMPLE MASS :{float_val}, {unit}")
-        return (float_val, unit)
-    else:
-        return None
     
     
-# text parsing function before   extractFloatWithUnit function, returns Header property value and unit
 def headerValueCheck(header, sample_property):
     """
-    checks the value of interest, is the value nan or is it just a string in the wrong format,
+    Text parsing function before  extractFloatWithUnit  function, returns Header property value and unit.
+    
+    Checks the value of interest, is the value nan or is it just a string in the wrong format,
     otherwise outputs the float value
     
     Parameters
     ----------
     header : PANDAS DATAFRAME
-        MEASUREMENT FILE HEADER.
+        measurement file header.
     sample_property : STRING
         PROPERTY TO CHECK.
 
     Returns
     -------
     float_val : TYPE
+        description.
+    unit : TYPE
         DESCRIPTION.
-    TYPE
-        DESCRIPTION.
-
+        
+        
+    None : Retuns None if no match found
     """
     
     header_column = header['2']
 
-    print(f"Checking:{sample_property}, {header_column[sample_property]}")#Hetkel jääb
+    print(f"Checking:{sample_property}, {header_column[sample_property]}")
     
     if not isinstance(header_column[sample_property], str) and np.isnan(header_column[sample_property]): #Checks whether the value is not a string and if it is a nan value
         print(f"NO VALID VALUE FOR {sample_property}, value is NAN \n")
         return None
     
+    def extractFloatWithUnit(string):
+        """
+        Text parsing helper function to help with sample parameters, uses regex to index the input string into a 
+        (float, unit) format if it has units, if no units (float, None) format, if no value (None)
+        
+        Parameters
+        ----------
+        string : STRING
+            the parameter string to examine.
+
+        Returns
+        -------
+        float_val : FLOAT
+            sample parameter value.
+        unit : STRING
+            sample parameter unit.
+            
+            
+        None : Returns None if no match found
+        """
+
+        regex = r'^([\d.]+)\s*([a-zA-Z]+(\d)?)?$'
+        match = re.search(regex, string)
+        
+        if match:
+            float_str = match.group(1)
+            unit = match.group(2)
+            float_val = float(float_str)
+            print(f"SAMPLE MASS :{float_val}, {unit}")
+            return (float_val, unit)
+        else:
+            return None
+        
     match = extractFloatWithUnit(header_column[sample_property])
     
     if match is None: #condition for extract_float_with_unit when it didn't find a match for a desired format therefore being a string
@@ -184,27 +186,27 @@ def headerValueCheck(header, sample_property):
         return None
     
     float_val = match[0]
-    #print("float value:", float_val)#Hetkel jääb
+
     unit = match[1]
-    #print("units:", unit)#Hetkel jääb
+
     
-    return float_val, unit #Ühikutega peaks veel midagi tegema
+    return float_val, unit
   
 
-#returned parsed MASS from Header
+
 def getMassInGrams(header):
     """
-    
+    Returns parsed MASS from Header
 
     Parameters
     ----------
-    header : TYPE
-        DESCRIPTION.
+    header : PANDAS DATAFRAME
+        Measurement file header
 
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    mass : FLOAT
+        Mass in grams.
 
     """
     
@@ -226,7 +228,6 @@ def getMassInGrams(header):
     if unit == 'mg':
         return mass/1000
     
-    
     if unit is None and mass > 1:
         mass= mass/1000
         print(f'Sample mass is {mass:.5f} grams \n')
@@ -236,6 +237,21 @@ def getMassInGrams(header):
 
 #Parsed sample size
 def getAreaCM2(header):
+    """
+    Returns parsed area if it's in the header
+
+    Parameters
+    ----------
+    header : PANDAS DATAFRAME
+        Measurement file header.
+
+    Returns
+    -------
+    area : FLOAT
+        Area value
+    
+    None : Returns None if no match
+    """
     #If the mass > 1, indicating that it's input is in mg, divides it by a 1000 to get g
     parameter = "SAMPLE_SIZE"
     
@@ -258,6 +274,21 @@ def getAreaCM2(header):
 # ei tea kas päris nii ikka teha
 #Parsed thickness
 def getThickness(data):
+    """
+    Checks the header for thickness, usually not in there but just in case
+
+    Parameters
+    ----------
+    data : PANDAS DATAFRAME
+        Measurement file header
+
+    Returns
+    -------
+    float_val : FLOAT
+        Thickness value
+    None : Return None if no match
+
+    """
     #Checks whether the title contains sample thickness in nm units: e.g. "25nm" and outputs 25
     try:
         thickness = data.iloc[3,1] #Title index in table
@@ -281,10 +312,28 @@ def getThickness(data):
 
 #---------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Recognizes what measurement types are present in the file. Returns two Pandas.Series: temperatures_of_interest, magnetic_fields_of_interest
-# Mida peaks tagastama errori korral?
-
 def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, min_count = 5):
+    """
+    Recognizes what measurement types are present in the file.
+    Returns the temperatures and magnetic fields where the MvsH and MvsT measurements were made
+
+    Parameters
+    ----------
+    measurement_table : PANDAS DATAFRAME
+        Measurement file data.
+    discrete_detection_ration : FLOAT, optional
+        Discrete detection ratio. The default is 0.02.
+    min_count : INT, optional
+        Min amount of instances of a measurement to pass the level!?. The default is 5.
+
+    Returns
+    -------
+    temperatures_of_interest : PANDAS SERIES
+        MvsH measurement temperatures.
+    magnetic_fields_of_interest : PANDAS SERIES
+        MvsT measurement fields.
+
+    """
     #Checks what measurements the file contains
     
     rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
@@ -343,8 +392,25 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
 
 #----------------------------------------MvsH specific functions-------------------------
 
-#Measurement indices based on the const T values
-def getMeasurementMvsH(const_T_values, bound = 0.15):
+def getMeasurementMvsH(const_T_values, bound = 1):
+    """
+    Uses the measurement data dataframe.
+    Saves the initial indices of values that fall between the bound from the constant temperature points for further filtering.
+    Returns them in a nested list.
+
+    Parameters
+    ----------
+    const_T_values : FLOAT
+        Measurement temperatures.
+    bound : FLOAT, optional
+        The plus/min bound from the constant value to choose elements by. The default is 1.
+
+    Returns
+    -------
+    all_indices : LIST
+        Nested list with indices at each const temp bound.
+
+    """
     #Saves all the indices of the points that fall between the bound
     table = ORIGINAL_DATAFRAME[['Temperature (K)', "color"]]
     filtered_dfs = []
@@ -361,16 +427,30 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
     return all_indices #filtered_dfs
 
 
-def sortTest(pairs):
-    # global first, second
+def removeBleedingElement(pairs):
+    """
+    This function ensures that there is no value "bleeding" from the next pair due to the way
+    separationIndexForSingleSeries function slices multiple measurements made on the same const value
+    
+    Parameters
+    ----------
+    pairs : LIST
+        List with dataframe pairs for the measurements.
+
+    Returns
+    -------
+    new_pairs : LIST
+        pairs list with removed elements, if there were any to remove.
+
+    """
+
     new_pairs = []
 
     for pair in pairs:
-        # first1 = pair[0]#["Magnetic Field (Oe)"]
-        # first = first1.copy()
+        
         first = pair[0]
-        # print(type(first))
-        second = pair[1]#["Magnetic Field (Oe)"]
+        
+        second = pair[1]
         
         try:
             first_max = max(first["Magnetic Field (Oe)"])
@@ -380,17 +460,13 @@ def sortTest(pairs):
             error_message = "Change separationIndexForSingleSeries argument n for correct extrema points"
             showExtremaError(error_message)
         
-        # print(f"{first_max=}")
-        # print(f"{second_max=}")
-        # print(f"{ratio=}\n")
         new_list = []
-        #print(f"{ratio=}")
+
         while not 0.9 < ratio < 1.1:
             if ratio < 0.9:
 
                 second = second[:-1]
                 ratio = first_max/max(second["Magnetic Field (Oe)"])
-                #print(f"{ratio=}")
                 
             elif ratio > 1.1:
 
@@ -403,8 +479,21 @@ def sortTest(pairs):
         
     return new_pairs
 
-#Rounds the min/max field for each MvsH correction
 def roundFieldForCorrection(pairs):
+    """
+    Returns the max field value for each individual MvsH measurement pair for correction fit
+
+    Parameters
+    ----------
+    pairs : LIST
+        List with the measurements in pandas dataframe.
+
+    Returns
+    -------
+    values : LIST
+        List with max field values for each measurement.
+
+    """
     #rounds the magnetic field to a nice number (100041.221 -> 100000)
     values = []
     for pair in pairs:
@@ -432,6 +521,23 @@ def roundFieldForCorrection(pairs):
     return values
 
 def searchCorrectionTable(folder_path, number):
+    """
+    Searches for the correction table that is closest to the measurement max field value,
+    returns the file path.
+
+    Parameters
+    ----------
+    folder_path : STRING
+        Folder path for the correction tables folder.
+    number : INT
+        Measurement max field value.
+
+    Returns
+    -------
+            STRING
+        File path for the closest correction table.
+
+    """
     closest_match = None
     min_difference = float('inf')  # Initialize with positive infinity
     
@@ -455,24 +561,55 @@ def searchCorrectionTable(folder_path, number):
     
 CORRECTION_FOLDER_PATH = os.path.join(USER_PATH,'PdCorrection tables')
 
-def CorrectionTableToDict(numbers_to_search):
+def CorrectionTableToDict(correctionField_values):
+    """
+    Returns the corresponding amount of correction tables for each unique min/max field value
+    in a dictionary form with the key being the value the table is for.
+
+    Parameters
+    ----------
+    correctionField_values : INT
+        Correction field max values.
+
+    Returns
+    -------
+    correction_tables : DICT
+        Dictionary with max_field_value:values format.
+
+    """
     #returns the corresponding amount of correction tables for each unique min/max measurement value in a dictionary form with the key being the value the table is for
-    error_tables = {}
+    correction_tables = {}
     
-    for nr in numbers_to_search:
-        error_table_path = searchCorrectionTable(CORRECTION_FOLDER_PATH, nr)
+    for nr in correctionField_values:
+        correction_table_path = searchCorrectionTable(CORRECTION_FOLDER_PATH, nr)
         
-        if error_table_path is None:
+        if correction_table_path is None:
             print(f"{nr} Oe jaoks ei leia parandustabelit ")
             continue
-        error_table_measurements = pd.read_csv(error_table_path, index_col=0, encoding="ANSI")
-        error_tables[nr] = error_table_measurements
+        correction_table_measurements = pd.read_csv(correction_table_path, index_col=0, encoding="ANSI")
+        correction_tables[nr] = correction_table_measurements
         
-    return error_tables
+    return correction_tables
 
-def interpolateTrueField(magnetic_field_values, error_table_measurements):
-    x = error_table_measurements["Magnetic Field (Oe)"]
-    y = error_table_measurements["True Field (Oe)"]
+def interpolateTrueField(magnetic_field_values, correction_tables):
+    """
+    Uses the correction table to interpolate the correct values for the measurement
+
+    Parameters
+    ----------
+    magnetic_field_values : SERIES
+        One part of the measured MvsH values.
+    correction_tables : PANDAS DATAFRAME
+        Correction table in dataframe format.
+
+    Returns
+    -------
+    true_field_interpolated : NUMPY.NDARRAY
+        Interpolated correction values based on the measurement points.
+
+    """
+    x = correction_tables["Magnetic Field (Oe)"]
+    y = correction_tables["True Field (Oe)"]
 
     # Create an interpolation function
     interp_func = interp1d(x, y, kind='linear', fill_value='extrapolate')
@@ -481,9 +618,24 @@ def interpolateTrueField(magnetic_field_values, error_table_measurements):
     true_field_interpolated = interp_func(magnetic_field_values)
     return true_field_interpolated
 
-def interpolateMvsH(separated_MvsH, error_tables):
-    #Adds the true field values column to the existing measurement dataframes
-    global true_field_interpolated, val
+def interpolateMvsH(separated_MvsH, correction_tables):
+    """
+    Adds the true field values column to the existing measurement dataframes.
+
+    Parameters
+    ----------
+    separated_MvsH : LIST
+        List with MvsH measurements.
+    correction_tables : DICT
+        Dict with the correction tables.
+
+    Returns
+    -------
+    interpolated_dict : LIST
+        separated_MvsH with the added true field column
+
+    """
+
     interpolated_dict = {}
     for pair in separated_MvsH:
         
@@ -501,7 +653,7 @@ def interpolateMvsH(separated_MvsH, error_tables):
         elif first_max < second_max:
             max_range = second_max
             
-        for key in error_tables:
+        for key in correction_tables:
             if key - 200 <= max_range <= key + 200:
 
                 #print(f"{max_range} kukub {key} vahemikku")
@@ -510,20 +662,37 @@ def interpolateMvsH(separated_MvsH, error_tables):
                     
                     magnetic_field_values = val["Magnetic Field (Oe)"]
                     # print(len(magnetic_field_values))
-                    true_field_interpolated = interpolateTrueField(magnetic_field_values, error_tables[key])
+                    true_field_interpolated = interpolateTrueField(magnetic_field_values, correction_tables[key])
+                    print(type(true_field_interpolated))
                     # print(len(true_field_interpolated))
                     val["True Field (Oe)"] = true_field_interpolated
                                 
-    return interpolated_dict
+    return interpolated_dict #!!1 siin vaata üle func returnib aga ei omista muutujale
 
-def plotMvsH(raamat, const_T_values):
+def plotMvsH(dict_MvsH, const_T_values):
+    """
+    Plots the MvsH measurement pictures wtih a legend where it specifies the ascending and descending part with different shades.
+    Plots the original field and true field values separately with different colors.
+    
+    It also saves the figures in the same folder the measurement file is in.
+
+    Parameters
+    ----------
+    dict_MvsH : DICT
+        Dictionary with MvsH measurements.
+
+    Returns
+    -------
+    Direct return None but saves the plots in a dedicated folder.
+
+    """
     #Plots the MvsH measurement pair with different colors
     
-    for key1 in raamat:
+    for key1 in dict_MvsH:
         
         i_pair = 1
         
-        for df in raamat[key1]:
+        for df in dict_MvsH[key1]:
             
             colorIdx = df[0].iloc[1].name
             Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
@@ -562,6 +731,7 @@ def plotMvsH(raamat, const_T_values):
 
 #Measurement indices based on the const H values
 def getMeasurementMvsT(const_H_values):
+    
     #Saves all the indices of the points that are equal to the predetermined H value
     row_indices = []
     table = ORIGINAL_DATAFRAME['Magnetic Field (Oe)']
@@ -573,13 +743,13 @@ def getMeasurementMvsT(const_H_values):
 
     return row_indices
 
-def plotMvsT(raamat, const_H_values):
+def plotMvsT(dict_MvsT, const_H_values):
     #Plots the MvsT measurement pair with different colors
    
-    for key in raamat:
+    for key in dict_MvsT:
         fig, ax = plt.subplots()
         i_pair = 1
-        for df in raamat[key]:
+        for df in dict_MvsT[key]:
 
             
             T1 = df[0]["Temperature (K)"]
@@ -607,6 +777,7 @@ def plotMvsT(raamat, const_H_values):
 
 #Separates all the series in the indices that grow by one and returns the longest one, that one being the measurement indices
 def filterMeasurementIndices(unfiltered_indices):
+
     filtered = []
     
     for unfiltered in unfiltered_indices:
@@ -633,25 +804,36 @@ def filterMeasurementIndices(unfiltered_indices):
 
 
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
-    Find local peaks indices (maxima and minima) in a DataFrame or Series.
+    Returns the indices of the series local peaks (maxima and minima) in a list
 
-    Parameters:
-    - data: DataFrame or Series.
-    - column_name: Name of the column to analyze.
-    - n: Number of points to be checked before and after.
+    Parameters
+    ----------
+    data : SERIES.
+        The series to analyze
+    column_name : STRING
+        Name of the column to analyze.
+    x : FLOAT
+        Percentage parameter, determines the size of n (number of points to compare around the extrema).
 
-    Returns:
-    - DataFrame with 'min' and 'max' columns indicating local minima and maxima.
+    Returns
+    -------
+    min_indices : LIST
+        List with series minima index values
+    max_indices : LIST
+        List with series maxima index values
     """
+    global test
     
     if isinstance(data, pd.Series):
         # Convert a Series to a DataFrame with a specified column name
         data = pd.DataFrame({column_name: data})
-    
+        
     index = data.index
     
+    n = int(x*len(data))
+    print(f"n for this run: {n}")
     # Find local peaks
     relative_min_indices = argrelextrema(data[column_name].values, np.less_equal, order=n)[0]
     relative_max_indices = argrelextrema(data[column_name].values, np.greater_equal, order=n)[0]
@@ -660,17 +842,22 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
     max_indices = index[relative_max_indices]
     
     title = ""
-    #sort indices helper function
+    
+    
     def removeSpecialCaseIndex():
+        """
+        Helper function that removes the first min/max index if it's value is near 0 tesla
+        because it is not needed from the data perspective
+        """
         nonlocal data, min_indices, max_indices, title
 
-        if column_name == "Magnetic Field (Oe)": #!!! hetkel probleem kui mõõtmine on mõeldud algama 0 väljast siis tuleb error
+        if column_name == "Magnetic Field (Oe)":
             
             if not len(max_indices) == 1:
                 title = "(Esimene min indeks eemaldatud)"
                 first_index = min_indices[0]
                 first_val = data.loc[first_index, column_name]
-                print(f"{min_indices[0]=}")
+                print(f"{first_index=}")
                 print(f"{first_val=}")
                 if -1 < first_val < 1:
                     min_indices = min_indices[1:]
@@ -695,7 +882,7 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
     plt.scatter(index, local_peaks['min'], c='r', label='Minima')
     plt.scatter(index, local_peaks['max'], c='g', label='Maxima')
     plt.plot(index, data[column_name], label=column_name)
-    plt.title(f"Test title \n {title}")
+    plt.title(f"Extrema graph \n {title}")
     plt.legend()
     plt.show()
         
@@ -703,6 +890,22 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
 
 # Iterates the functionality of separationIndexForSingleSeries 
 def separationIndexForMultipleSeries(indices, column_name):
+    """
+    Iterates the separationIndexForSingleSeries function over all the 
+
+    Parameters
+    ----------
+    indices : TYPE
+        DESCRIPTION.
+    column_name : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    indices_for_separation : TYPE
+        DESCRIPTION.
+
+    """
     indices_for_separation = []
     
     for measurement_index in indices:
@@ -714,6 +917,26 @@ def separationIndexForMultipleSeries(indices, column_name):
     return indices_for_separation
 
 def separateMeasurementWithColorIdx(separation_index, measurement_indices, column):
+    """
+    
+
+    Parameters
+    ----------
+    separation_index : TYPE
+        DESCRIPTION.
+    measurement_indices : TYPE
+        DESCRIPTION.
+    column : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    separated_pair : TYPE
+        DESCRIPTION.
+    pair_indices : TYPE
+        DESCRIPTION.
+
+    """
     #Separates the points based on the separation indices and returns the separated series in pairs
     #Assigns a unique color to each pair
     
@@ -1058,7 +1281,7 @@ else:
     print(' MvsH data detected')
     print(TEMPERATURES_OF_INTEREST)
     
-    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST, bound = 1)
+    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     
     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
@@ -1069,7 +1292,7 @@ else:
     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
     
-    SEPARATED_MvsH = sortTest(SEPARATED_MvsH)
+    SEPARATED_MvsH = removeBleedingElement(SEPARATED_MvsH)
     correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
     CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
     

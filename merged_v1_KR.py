@@ -917,26 +917,7 @@ def separationIndexForMultipleSeries(indices, column_name):
     return indices_for_separation
 
 def separateMeasurementWithColorIdx(separation_index, measurement_indices, column):
-    """
-    
 
-    Parameters
-    ----------
-    separation_index : TYPE
-        DESCRIPTION.
-    measurement_indices : TYPE
-        DESCRIPTION.
-    column : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    separated_pair : TYPE
-        DESCRIPTION.
-    pair_indices : TYPE
-        DESCRIPTION.
-
-    """
     #Separates the points based on the separation indices and returns the separated series in pairs
     #Assigns a unique color to each pair
     

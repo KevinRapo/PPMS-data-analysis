@@ -395,7 +395,7 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
 def getMeasurementMvsH(const_T_values, bound = 1):
     """
     Uses the measurement data dataframe.
-    Saves the initial indices of values that fall between the bound from the constant temperature points for further filtering.
+    Saves the initial row indices of data point values that fall between the MvsH bound from the constant temperature points for further filtering.
     Returns them in a nested list.
 
     Parameters
@@ -407,14 +407,14 @@ def getMeasurementMvsH(const_T_values, bound = 1):
 
     Returns
     -------
-    all_indices : LIST
+    row_indices : LIST
         Nested list with indices at each const temp bound.
 
     """
     #Saves all the indices of the points that fall between the bound
     table = ORIGINAL_DATAFRAME[['Temperature (K)', "color"]]
     filtered_dfs = []
-    all_indices = []
+    row_indices = []
     
     for value in const_T_values:
         lower = value - bound
@@ -422,9 +422,9 @@ def getMeasurementMvsH(const_T_values, bound = 1):
         filtered_df = table[(table['Temperature (K)'] >= lower) & (table['Temperature (K)'] <= upper) & (table['color'] == "black") ]
         indices = filtered_df.index.tolist()
         filtered_dfs.append(filtered_df)
-        all_indices.append(indices)
+        row_indices.append(indices)
         
-    return all_indices #filtered_dfs
+    return row_indices #filtered_dfs
 
 
 def removeBleedingElement(pairs):
@@ -669,7 +669,7 @@ def interpolateMvsH(separated_MvsH, correction_tables):
                                 
     return interpolated_dict #!!1 siin vaata üle func returnib aga ei omista muutujale
 
-def plotMvsH(dict_MvsH, const_T_values):
+def plotMvsH(dict_MvsH):
     """
     Plots the MvsH measurement pictures wtih a legend where it specifies the ascending and descending part with different shades.
     Plots the original field and true field values separately with different colors.
@@ -729,9 +729,23 @@ def plotMvsH(dict_MvsH, const_T_values):
     return None
 #-----------------------------MvsT specific functions--------------------------------
 
-#Measurement indices based on the const H values
 def getMeasurementMvsT(const_H_values):
-    
+    """
+    Uses the measurement data dataframe.
+    Saves the initial row indices of MvsT values that are equal to the constant field points for further filtering.
+    Returns them in a nested list.
+
+    Parameters
+    ----------
+    const_H_values : FLOAT
+        Measurement temperatures.
+
+    Returns
+    -------
+    row_indices : LIST
+        Nested list with row indices at each const field
+
+    """
     #Saves all the indices of the points that are equal to the predetermined H value
     row_indices = []
     table = ORIGINAL_DATAFRAME['Magnetic Field (Oe)']
@@ -743,8 +757,21 @@ def getMeasurementMvsT(const_H_values):
 
     return row_indices
 
-def plotMvsT(dict_MvsT, const_H_values):
-    #Plots the MvsT measurement pair with different colors
+def plotMvsT(dict_MvsT):
+    """
+    Plots the MvsT measurements with different colors.
+    If there are multiple measurements on the same field, plots them on the same graph
+
+    Parameters
+    ----------
+    dict_MvsT : DICT
+        Dictionary with MvsT measurements.
+
+    Returns
+    -------
+    Direct return None but saves the plots in a dedicated folder.
+
+    """
    
     for key in dict_MvsT:
         fig, ax = plt.subplots()
@@ -777,7 +804,20 @@ def plotMvsT(dict_MvsT, const_H_values):
 
 #Separates all the series in the indices that grow by one and returns the longest one, that one being the measurement indices
 def filterMeasurementIndices(unfiltered_indices):
+    """
+    Filters the measurement indices so that the longest consecutive list is the measurement.
 
+    Parameters
+    ----------
+    unfiltered_indices : LIST
+        Nested unfiltered measurement data indices.
+
+    Returns
+    -------
+    filtered : LIST
+        Nested filtered measurement data indices.
+
+    """
     filtered = []
     
     for unfiltered in unfiltered_indices:
@@ -891,26 +931,27 @@ def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://sta
 # Iterates the functionality of separationIndexForSingleSeries 
 def separationIndexForMultipleSeries(indices, column_name):
     """
-    Iterates the separationIndexForSingleSeries function over all the 
+    Iterates the separationIndexForSingleSeries function over all the separate indices.
+    This is used for separating single measurements made on the same const value
 
     Parameters
     ----------
-    indices : TYPE
-        DESCRIPTION.
-    column_name : TYPE
-        DESCRIPTION.
+    indices : LIST
+        Nested measurement indices.
+    column_name : STRING
+        The column to use.
 
     Returns
     -------
-    indices_for_separation : TYPE
-        DESCRIPTION.
+    indices_for_separation : LIST
+        List with the indices for the separation in a tuple.
 
     """
     indices_for_separation = []
     
     for measurement_index in indices:
         
-        measurement = ORIGINAL_DATAFRAME[column_name].loc[measurement_index]
+        measurement = ORIGINAL_DATAFRAME.loc[measurement_index, column_name]
         separation_indices = separationIndexForSingleSeries(measurement, column_name)
         indices_for_separation.append(separation_indices)
         

@@ -810,12 +810,12 @@ def filterMeasurementIndices(unfiltered_indices):
     Parameters
     ----------
     unfiltered_indices : LIST
-        Nested unfiltered measurement data indices.
+        Nested list with unfiltered measurement data indices.
 
     Returns
     -------
     filtered : LIST
-        Nested filtered measurement data indices.
+        Nested list with filtered measurement data indices.
 
     """
     filtered = []
@@ -933,11 +933,12 @@ def separationIndexForMultipleSeries(indices, column_name):
     """
     Iterates the separationIndexForSingleSeries function over all the separate indices.
     This is used for separating single measurements made on the same const value
+    into two ascending/descending pair.
 
     Parameters
     ----------
     indices : LIST
-        Nested measurement indices.
+        Nested list with measurement indices.
     column_name : STRING
         The column to use.
 
@@ -957,64 +958,81 @@ def separationIndexForMultipleSeries(indices, column_name):
         
     return indices_for_separation
 
-def separateMeasurementWithColorIdx(separation_index, measurement_indices, column):
+def separateMeasurementWithColorIdx(separation_indices, measurement_indices, column_name):
+    """
+    Separates the points based on the separation indices and returns the separated series in pairs
 
-    #Separates the points based on the separation indices and returns the separated series in pairs
-    #Assigns a unique color to each pair
+    Parameters
+    ----------
+    separation_indices : LIST
+        List with separation indices in a tuple.
+    measurement_indices : LIST
+        Nested list with measurement indices.
+    column_name : STRING
+        DESCRIPTION.
+
+    Returns
+    -------
+    separated_pair : TYPE
+        DESCRIPTION.
+    pair_indices : TYPE
+        DESCRIPTION.
+
+    """
     
-    # global min_index_list, j
     separated_pair = []
     pair_indices = []
     
-    if not isinstance(separation_index, list):
-        separation_index = [separation_index]
+    if not isinstance(separation_indices, list):
+        separation_indices = [separation_indices]
     
-    k = 0
-    for min_max_index in separation_index:
+    color_index = 0
+    
+    for min_max_index in separation_indices: 
         
-        if min_max_index[0][0] < min_max_index[1][0]: #kontroll selleks et kas andmed on + - + või - + -
+        if min_max_index[0][0] < min_max_index[1][0]: #First assigns the correct indices, assumes data is shaped as + - + or - + -
             min_index_list = min_max_index[0].tolist()
             max_index_list = min_max_index[1].tolist()
         else:
             min_index_list = min_max_index[1].tolist()
             max_index_list = min_max_index[0].tolist()
     
-        j = 0
+        iteration_index = 0
         
-        for indices in measurement_indices:
+        for indices in measurement_indices: #Iterates through the separate indices and separates them
     
-            tabel = ORIGINAL_DATAFRAME[[column,"Moment (emu)"]].loc[indices] #VB SIIA VÄRV PANNA KUI EI OLE VAHET
+            measurement = ORIGINAL_DATAFRAME[[column_name,"Moment (emu)"]].loc[indices]
         
-            for max_index in max_index_list:
+            for max_index in max_index_list: #Slices them from min to max and from max to min pairs
                 
                 separated = []
                 index1 = []
                 index2 = []
-                if max_index in indices:
+                
+                if max_index in indices: #Checks if 
                     
-                    sliced1 = tabel.loc[min_index_list[j]:max_index] #paaride data
+                    sliced1 = measurement.loc[min_index_list[iteration_index]:max_index] #paaride data
                     separated.append(sliced1)
                     
-                    # print(COLORS[0])
-                    ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index, "color"] = COLORS[k] #värvid paaridele
+                    ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index, "color"] = COLORS[color_index] #värvid paaridele
                     
-                    index1 = ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index].index.tolist() #paaride indeksid
+                    index1 = ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index].index.tolist() #paaride indeksid
                     
-                    if j == len(min_index_list) - 1:
-                        sliced2 = tabel.loc[max_index+1:min_index_list[j]]
+                    if iteration_index == len(min_index_list) - 1:
+                        sliced2 = measurement.loc[max_index+1:min_index_list[iteration_index]]
                         
-                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j], "color"] = COLORS[k]
+                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index], "color"] = COLORS[color_index]
                         
-                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j]].index.tolist()
+                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index]].index.tolist()
                         
                     else:
-                        sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
+                        sliced2 = measurement.loc[max_index+1:min_index_list[iteration_index+1]]
                         
-                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1], "color"] = COLORS[k]
+                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index+1], "color"] = COLORS[color_index]
                         
-                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1]].index.tolist()
+                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index+1]].index.tolist()
                 else:
-                    max_index_list = max_index_list[j:]
+                    max_index_list = max_index_list[iteration_index:]
 
                     break
                 
@@ -1022,17 +1040,14 @@ def separateMeasurementWithColorIdx(separation_index, measurement_indices, colum
                 separated.append(sliced2)
                 separated_pair.append(separated)
                 
-                #COLORS.pop(0)
-                # print("k:", k)
-                # print(f"{len(COLORS)}")
-                k += 1
-                j += 1
-                if k == len(COLORS):
-                    k = 0
-        
+                color_index += 1
+                iteration_index += 1
+                if color_index == len(COLORS): #if the colors are used up it goes back to the beginning
+                    color_index = 0
+                    
     return separated_pair, pair_indices
 
-def separateIntoDictValuePair(separated_pairs, const_val, column, token):
+def separateIntoDictValuePair(separated_pairs, const_val, column_name, token):
     # Creates a dict{const value the measurement was made at: measurement} 
     raamat = {}
     
@@ -1041,7 +1056,7 @@ def separateIntoDictValuePair(separated_pairs, const_val, column, token):
         for val in separated_pairs:
             
             index_to_check = val[0].index[0]
-            val_to_check = ORIGINAL_DATAFRAME[column].iloc[index_to_check]
+            val_to_check = ORIGINAL_DATAFRAME[column_name].iloc[index_to_check]
             
             #Rounds the values if the measurement needs to check for MvsH, for MvsT can use direct == becasue they are precise
             val_to_check, const = (round(val_to_check), round(const)) if token == "MvsH" else (val_to_check, const)
@@ -1275,7 +1290,7 @@ else:
     
     unfiltered_MvsT_indices = getMeasurementMvsT(MAGNETIC_FIELDS_OF_INTEREST)
     MvsT_INDICES = filterMeasurementIndices(unfiltered_MvsT_indices)
-    
+    test_MvsT = copy.deepcopy(MvsT_INDICES)
     separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")# the indices where the separation is going to be done
     
     #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
@@ -1285,7 +1300,7 @@ else:
         
     DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
     
-    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
+    plotMvsT(DICT_MvsT)
     
     setColumnForType(MvsT_INDICES, "MvsT")
     addParameterColumns(SEPARATED_MvsT, "MvsT")#this function modifies SEPARATED_MvsT which inturn modifies DICT_MvsT since it's a global mutable variable
@@ -1307,7 +1322,7 @@ else:
     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     
     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
-    
+    test_MvsH = copy.deepcopy(MvsH_INDICES)
     #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
     SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
     # except IndexError as ie:
@@ -1322,7 +1337,7 @@ else:
     
     DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
     
-    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
+    plotMvsH(DICT_MvsH)
     
     setColumnForType(MvsH_INDICES, "MvsH")
     addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable

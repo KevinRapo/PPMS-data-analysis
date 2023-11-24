@@ -30,12 +30,12 @@ root.withdraw()
         
 def askNewDatafilePath():
     """
-    ask for user input for a datafile
+    Ask for user input for a datafile.
 
     Returns
     -------
     file_path : STRING
-        file path for the measurement file
+        File path for the measurement file
 
     """
     
@@ -46,7 +46,7 @@ def askNewDatafilePath():
 
 def readDatafile(file_path):
     '''
-    Reads in the data file and separates the header and measurement info
+    Reads in the data file and separates the header and measurement info into pandas dataframes.
     
     Parameters
     ----------
@@ -94,7 +94,7 @@ def determineDatafileType(header):
     Returns
     -------
     token : STRING
-        Data file type
+        Data file type, "VSM" or "ACMS"
 
     """
 
@@ -115,10 +115,9 @@ def determineDatafileType(header):
     
 def headerValueCheck(header, sample_property):
     """
-    Text parsing function before  extractFloatWithUnit  function, returns Header property value and unit.
+    Text parsing function to return sample property value and unit from the header if they exist.
     
-    Checks the value of interest, is the value nan or is it just a string in the wrong format,
-    otherwise outputs the float value
+    Uses a helper function extractFloatWithUnit to parse the property.
     
     Parameters
     ----------
@@ -148,8 +147,8 @@ def headerValueCheck(header, sample_property):
     
     def extractFloatWithUnit(string):
         """
-        Text parsing helper function to help with sample parameters, uses regex to index the input string into a 
-        (float, unit) format if it has units, if no units (float, None) format, if no value (None)
+        Text parsing helper function to help with sample properties, uses regex to separate the input string into
+        a (float, unit) format if it has units, if no units (float, None) format, if no value (None)
         
         Parameters
         ----------
@@ -192,7 +191,6 @@ def headerValueCheck(header, sample_property):
     
     return float_val, unit
   
-
 
 def getMassInGrams(header):
     """
@@ -275,7 +273,8 @@ def getAreaCM2(header):
 #Parsed thickness
 def getThickness(data):
     """
-    Checks the header for thickness, usually not in there but just in case
+    Checks if the datafile title (from the header) contains the sample thickness,
+    usually not there but just in case does the control.
 
     Parameters
     ----------
@@ -294,13 +293,15 @@ def getThickness(data):
         thickness = data.iloc[3,1] #Title index in table
         pattern = r"(\d+)\s*(nm)"
         match = re.search(pattern,thickness)
+        
         if match:
             float_str = match.group(1)
             print(f"Checking thickness: {float_str} nm")
-            #unit = match.group(2)
             float_val = float(float_str)*10**-7 # nm to cm conversion
             print(f"Sample thickness is: {float_val} cm \n" )
+            
             return float_val
+        
         else:
             print("Sample thickness not found in title \n")
             return None
@@ -315,6 +316,7 @@ def getThickness(data):
 def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, min_count = 5):
     """
     Recognizes what measurement types are present in the file.
+    
     Returns the temperatures and magnetic fields where the MvsH and MvsT measurements were made
 
     Parameters
@@ -394,21 +396,20 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
 
 def getMeasurementMvsH(const_T_values, bound = 1):
     """
-    Uses the measurement data dataframe.
     Saves the initial row indices of data point values that fall between the MvsH bound from the constant temperature points for further filtering.
     Returns them in a nested list.
 
     Parameters
     ----------
-    const_T_values : FLOAT
+    const_T_values : PANDAS SERIES OF FLOATS
         Measurement temperatures.
     bound : FLOAT, optional
         The plus/min bound from the constant value to choose elements by. The default is 1.
 
     Returns
     -------
-    row_indices : LIST
-        Nested list with indices at each const temp bound.
+    row_indices : LIST OF LIST OF INT
+        Nested list with int indices at each const temp bound.
 
     """
     #Saves all the indices of the points that fall between the bound
@@ -430,17 +431,21 @@ def getMeasurementMvsH(const_T_values, bound = 1):
 def removeBleedingElement(pairs):
     """
     This function ensures that there is no value "bleeding" from the next pair due to the way
-    separationIndexForSingleSeries function slices multiple measurements made on the same const value
+    separationIndexForSingleSeries function slices multiple measurements made on the same const value.
+    
+    Special case when the first element from the next measurement "bleeds" into the previous measurement,
+    the function uses a ratio = first_part_max/second_part_max to determine if the first and second part
+    have the same max value and removes the second part last element if the ratio is out of bounds.
     
     Parameters
     ----------
-    pairs : LIST
-        List with dataframe pairs for the measurements.
+    pairs : LIST OF LIST OF DATAFRAMES
+        Nested list with dataframe pairs for the measurements.
 
     Returns
     -------
     new_pairs : LIST
-        pairs list with removed elements, if there were any to remove.
+        "pairs" list with removed elements, if there were any to remove.
 
     """
 
@@ -485,12 +490,12 @@ def roundFieldForCorrection(pairs):
 
     Parameters
     ----------
-    pairs : LIST
-        List with the measurements in pandas dataframe.
+    pairs : LIST OF LIST OF DATAFRAMES
+        Nested list with dataframe pairs for the measurements.
 
     Returns
     -------
-    values : LIST
+    values : LIST OF INT
         List with max field values for each measurement.
 
     """
@@ -573,8 +578,8 @@ def CorrectionTableToDict(correctionField_values):
 
     Returns
     -------
-    correction_tables : DICT
-        Dictionary with max_field_value:values format.
+    correction_tables : DICT OF {int : Dataframe}
+        Dictionary with max_field_value : values_at_that_field format.
 
     """
     #returns the corresponding amount of correction tables for each unique min/max measurement value in a dictionary form with the key being the value the table is for
@@ -597,9 +602,9 @@ def interpolateTrueField(magnetic_field_values, correction_tables):
 
     Parameters
     ----------
-    magnetic_field_values : SERIES
-        One part of the measured MvsH values.
-    correction_tables : PANDAS DATAFRAME
+    magnetic_field_values : SERIES OF FLOAT
+        One part of the measured MvsH field values.
+    correction_tables : DATAFRAME
         Correction table in dataframe format.
 
     Returns
@@ -624,15 +629,15 @@ def interpolateMvsH(separated_MvsH, correction_tables):
 
     Parameters
     ----------
-    separated_MvsH : LIST
-        List with MvsH measurements.
-    correction_tables : DICT
-        Dict with the correction tables.
+    separated_MvsH : LIST OF LIST OF DATAFRAMES
+        Nested list with MvsH measurements dataframes.
+    correction_tables : DICT OF {int : Dataframe}
+        Dict with the correction tables, field_value : values_at_that_field format.
 
     Returns
     -------
-    interpolated_dict : LIST
-        separated_MvsH with the added true field column
+    interpolated_dict : LIST OF LIST OF DATAFRAMES
+        "separated_MvsH" with the added true field column
 
     """
 
@@ -678,8 +683,8 @@ def plotMvsH(dict_MvsH):
 
     Parameters
     ----------
-    dict_MvsH : DICT
-        Dictionary with MvsH measurements.
+    dict_MvsH : DICT OF {float : list of list of dataframes}
+        Dictionary with MvsH measurements, temp_values : measurement_dataframes format.
 
     Returns
     -------
@@ -731,18 +736,17 @@ def plotMvsH(dict_MvsH):
 
 def getMeasurementMvsT(const_H_values):
     """
-    Uses the measurement data dataframe.
-    Saves the initial row indices of MvsT values that are equal to the constant field points for further filtering.
+    Saves the initial row indices of MvsT values that are equal to the constant field values for further filtering.
     Returns them in a nested list.
 
     Parameters
     ----------
-    const_H_values : FLOAT
-        Measurement temperatures.
+    const_H_values : LIST OF FLOAT
+        Measurement temperatures as floats.
 
     Returns
     -------
-    row_indices : LIST
+    row_indices : LIST OF LIST OF INT
         Nested list with row indices at each const field
 
     """
@@ -759,13 +763,15 @@ def getMeasurementMvsT(const_H_values):
 
 def plotMvsT(dict_MvsT):
     """
-    Plots the MvsT measurements with different colors.
-    If there are multiple measurements on the same field, plots them on the same graph
-
+    Plots the MvsT measurement pictures wtih a legend where it specifies the ascending and descending part with different shades.
+    
+    If there are multiple measurements on the same field, plots them on the same graph.
+    It also saves the figures in the same folder the measurement file is in.
+    
     Parameters
     ----------
-    dict_MvsT : DICT
-        Dictionary with MvsT measurements.
+    dict_MvsT : DICT OF {float : list of list of dataframes}
+        Dictionary with MvsT measurements, field_value : measurement_dataframes format.
 
     Returns
     -------
@@ -809,12 +815,12 @@ def filterMeasurementIndices(unfiltered_indices):
 
     Parameters
     ----------
-    unfiltered_indices : LIST
+    unfiltered_indices : LIST OF LIST OF INT
         Nested list with unfiltered measurement data indices.
 
     Returns
     -------
-    filtered : LIST
+    filtered : LIST OF LIST OF INT
         Nested list with filtered measurement data indices.
 
     """
@@ -844,27 +850,26 @@ def filterMeasurementIndices(unfiltered_indices):
 
 
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, x = 0.2): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Returns the indices of the series local peaks (maxima and minima) in a list
 
     Parameters
     ----------
-    data : SERIES.
-        The series to analyze
+    data : SERIES OF FLOAT.
+        The series to analyze.
     column_name : STRING
         Name of the column to analyze.
     x : FLOAT
-        Percentage parameter, determines the size of n (number of points to compare around the extrema).
+        Percentage parameter, determines the percentage of n (number of points to compare around the extrema) to use.
 
     Returns
     -------
-    min_indices : LIST
-        List with series minima index values
-    max_indices : LIST
-        List with series maxima index values
+    min_indices : PANDAS.INDEX
+        Series minima index (int) values 
+    max_indices : PANDAS.INDEX
+        Series maxima index (int) values
     """
-    global test
     
     if isinstance(data, pd.Series):
         # Convert a Series to a DataFrame with a specified column name
@@ -873,7 +878,8 @@ def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://sta
     index = data.index
     
     n = int(x*len(data))
-    print(f"n for this run: {n}")
+    #print(f"n for this run: {n}")
+    
     # Find local peaks
     relative_min_indices = argrelextrema(data[column_name].values, np.less_equal, order=n)[0]
     relative_max_indices = argrelextrema(data[column_name].values, np.greater_equal, order=n)[0]
@@ -883,6 +889,7 @@ def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://sta
     
     title = ""
     
+    print("type.", type(min_indices))
     
     def removeSpecialCaseIndex():
         """
@@ -931,21 +938,21 @@ def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://sta
 # Iterates the functionality of separationIndexForSingleSeries 
 def separationIndexForMultipleSeries(indices, column_name):
     """
-    Iterates the separationIndexForSingleSeries function over all the separate indices.
-    This is used for separating single measurements made on the same const value
-    into two ascending/descending pair.
+    Iterates the separationIndexForSingleSeries function over all the separate indices and appends it's results.
+    
+    This is used for separating single measurements made on the same const value into two ascending/descending pair.
 
     Parameters
     ----------
-    indices : LIST
+    indices : LIST OF LIST OF INT
         Nested list with measurement indices.
     column_name : STRING
         The column to use.
 
     Returns
     -------
-    indices_for_separation : LIST
-        List with the indices for the separation in a tuple.
+    indices_for_separation : LIST OF TUPLE OF (pandas.Index,pandas.Index)
+        List with the indices (int) for the separation in a tuple.
 
     """
     indices_for_separation = []
@@ -1322,12 +1329,13 @@ else:
     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     
     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
-    test_MvsH = copy.deepcopy(MvsH_INDICES)
+    # test_MvsH1 = copy.deepcopy(MvsH_INDICES)
     #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
     SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
     # except IndexError as ie:
     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
+    # test_MvsH2 = copy.deepcopy(MvsH_INDICES)
     
     SEPARATED_MvsH = removeBleedingElement(SEPARATED_MvsH)
     correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)

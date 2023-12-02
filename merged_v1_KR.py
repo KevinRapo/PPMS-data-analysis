@@ -668,7 +668,7 @@ def interpolateMvsH(separated_MvsH, correction_tables):
                     magnetic_field_values = val["Magnetic Field (Oe)"]
                     # print(len(magnetic_field_values))
                     true_field_interpolated = interpolateTrueField(magnetic_field_values, correction_tables[key])
-                    print(type(true_field_interpolated))
+                    #print(type(true_field_interpolated))
                     # print(len(true_field_interpolated))
                     val["True Field (Oe)"] = true_field_interpolated
                                 
@@ -850,7 +850,7 @@ def filterMeasurementIndices(unfiltered_indices):
 
 
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, x = 0.2): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Returns the indices of the series local peaks (maxima and minima) in a list
 
@@ -859,7 +859,7 @@ def separationIndexForSingleSeries(data, column_name, x = 0.2): #!!! https://sta
     data : SERIES OF FLOAT.
         The series to analyze.
     column_name : STRING
-        Name of the column to analyze.
+        Name of the column to analyze based on the measurement.
     x : FLOAT
         Percentage parameter, determines the percentage of n (number of points to compare around the extrema) to use.
 
@@ -889,12 +889,11 @@ def separationIndexForSingleSeries(data, column_name, x = 0.2): #!!! https://sta
     
     title = ""
     
-    print("type.", type(min_indices))
-    
     def removeSpecialCaseIndex():
         """
         Helper function that removes the first min/max index if it's value is near 0 tesla
-        because it is not needed from the data perspective
+        because it is not needed from the data perspective. All the points from the first removed
+        index till the next index will be removed from the data plot due to this.
         """
         nonlocal data, min_indices, max_indices, title
 
@@ -904,8 +903,8 @@ def separationIndexForSingleSeries(data, column_name, x = 0.2): #!!! https://sta
                 title = "(Esimene min indeks eemaldatud)"
                 first_index = min_indices[0]
                 first_val = data.loc[first_index, column_name]
-                print(f"{first_index=}")
-                print(f"{first_val=}")
+                # print(f"{first_index=}")
+                # print(f"{first_val=}")
                 if -1 < first_val < 1:
                     min_indices = min_indices[1:]
                 
@@ -947,7 +946,7 @@ def separationIndexForMultipleSeries(indices, column_name):
     indices : LIST OF LIST OF INT
         Nested list with measurement indices.
     column_name : STRING
-        The column to use.
+        Name of the column to analyze based on the measurement.
 
     Returns
     -------
@@ -965,18 +964,18 @@ def separationIndexForMultipleSeries(indices, column_name):
         
     return indices_for_separation
 
-def separateMeasurementWithColorIdx(separation_indices, measurement_indices, column_name):
+def separateMeasurementWithColorIdx(indices_for_separation, measurement_indices, column_name):
     """
     Separates the points based on the separation indices and returns the separated series in pairs
 
     Parameters
     ----------
-    separation_indices : LIST
-        List with separation indices in a tuple.
-    measurement_indices : LIST
+    indices_for_separation : LIST OF TUPLE OF (pandas.Index,pandas.Index)
+        List with the indices (int) for the separation in a tuple..
+    measurement_indices : LIST OF LIST OF INT
         Nested list with measurement indices.
     column_name : STRING
-        DESCRIPTION.
+        Name of the column to use based on the measurement.
 
     Returns
     -------
@@ -990,12 +989,12 @@ def separateMeasurementWithColorIdx(separation_indices, measurement_indices, col
     separated_pair = []
     pair_indices = []
     
-    if not isinstance(separation_indices, list):
-        separation_indices = [separation_indices]
+    if not isinstance(indices_for_separation, list):
+        indices_for_separation = [indices_for_separation]
     
     color_index = 0
     
-    for min_max_index in separation_indices: 
+    for min_max_index in indices_for_separation: 
         
         if min_max_index[0][0] < min_max_index[1][0]: #First assigns the correct indices, assumes data is shaped as + - + or - + -
             min_index_list = min_max_index[0].tolist()
@@ -1013,8 +1012,8 @@ def separateMeasurementWithColorIdx(separation_indices, measurement_indices, col
             for max_index in max_index_list: #Slices them from min to max and from max to min pairs
                 
                 separated = []
-                index1 = []
-                index2 = []
+                indices_pair1 = []
+                indices_pair2 = []
                 
                 if max_index in indices: #Checks if 
                     
@@ -1023,27 +1022,27 @@ def separateMeasurementWithColorIdx(separation_indices, measurement_indices, col
                     
                     ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index, "color"] = COLORS[color_index] #värvid paaridele
                     
-                    index1 = ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index].index.tolist() #paaride indeksid
+                    indices_pair1 = ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index].index.tolist() #paaride indeksid
                     
                     if iteration_index == len(min_index_list) - 1:
                         sliced2 = measurement.loc[max_index+1:min_index_list[iteration_index]]
                         
                         ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index], "color"] = COLORS[color_index]
                         
-                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index]].index.tolist()
+                        indices_pair2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index]].index.tolist()
                         
                     else:
                         sliced2 = measurement.loc[max_index+1:min_index_list[iteration_index+1]]
                         
                         ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index+1], "color"] = COLORS[color_index]
                         
-                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index+1]].index.tolist()
+                        indices_pair2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index+1]].index.tolist()
                 else:
                     max_index_list = max_index_list[iteration_index:]
 
                     break
                 
-                pair_indices.append(index1 + index2)
+                pair_indices.append(indices_pair1 + indices_pair2)
                 separated.append(sliced2)
                 separated_pair.append(separated)
                 
@@ -1335,7 +1334,7 @@ else:
     # except IndexError as ie:
     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    # test_MvsH2 = copy.deepcopy(MvsH_INDICES)
+    #test_MvsH2 = copy.deepcopy(SEPARATED_MvsH)
     
     SEPARATED_MvsH = removeBleedingElement(SEPARATED_MvsH)
     correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)

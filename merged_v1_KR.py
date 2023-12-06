@@ -980,14 +980,14 @@ def separateMeasurementWithColorIdx(indices_for_separation, measurement_indices,
 
     Returns
     -------
-    separated_pair : TYPE
+    separated_pair : LIST OF LIST OF DATAFRAME
         DESCRIPTION.
     pair_indices : TYPE
         DESCRIPTION.
 
     """
     
-    separated_pair = []
+    separated_pair_all = []
     pair_indices = []
     
     if not isinstance(indices_for_separation, list):
@@ -1012,14 +1012,14 @@ def separateMeasurementWithColorIdx(indices_for_separation, measurement_indices,
         
             for max_index in max_index_list: #Slices them from min to max and from max to min pairs
                 
-                separated = []
+                separated_pair = []
                 indices_pair1 = []
                 indices_pair2 = []
                 
                 if max_index in indices: #Checks if 
                     
                     sliced1 = measurement.loc[min_index_list[iteration_index]:max_index] #paaride data
-                    separated.append(sliced1)
+                    separated_pair.append(sliced1)
                     
                     ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index, "color"] = COLORS[color_index] #värvid paaridele
                     
@@ -1044,15 +1044,15 @@ def separateMeasurementWithColorIdx(indices_for_separation, measurement_indices,
                     break
                 
                 pair_indices.append(indices_pair1 + indices_pair2)
-                separated.append(sliced2)
-                separated_pair.append(separated)
+                separated_pair.append(sliced2)
+                separated_pair_all.append(separated_pair)
                 
                 color_index += 1
                 iteration_index += 1
                 if color_index == len(COLORS): #if the colors are used up it goes back to the beginning
                     color_index = 0
                     
-    return separated_pair, pair_indices
+    return separated_pair_all, pair_indices
 
 def separateIntoDictValuePair(separated_pairs, const_val, column_name, token):
     # Creates a dict{const value the measurement was made at: measurement} 

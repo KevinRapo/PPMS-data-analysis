@@ -336,9 +336,10 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
         MvsT measurement fields.
 
     """
+    global tempCount
     #Checks what measurements the file contains
     
-    rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
+    rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=1)
     rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=0)
     
     #returnitavad Seried
@@ -850,7 +851,7 @@ def filterMeasurementIndices(unfiltered_indices):
 
 
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, x): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
     Returns the indices of the series local peaks (maxima and minima) in a list
 
@@ -861,7 +862,7 @@ def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://sta
     column_name : STRING
         Name of the column to analyze based on the measurement.
     x : FLOAT
-        Percentage parameter, determines the percentage of n (number of points to compare around the extrema) to use.
+        Percentage parameter, determines the percentage of n (number of points to compare around the extrema) to use. 
 
     Returns
     -------
@@ -935,7 +936,7 @@ def separationIndexForSingleSeries(data, column_name, x = 0.1): #!!! https://sta
     return min_indices, max_indices
 
 # Iterates the functionality of separationIndexForSingleSeries 
-def separationIndexForMultipleSeries(indices, column_name):
+def separationIndexForMultipleSeries(indices, column_name, x=0.1):
     """
     Iterates the separationIndexForSingleSeries function over all the separate indices and appends it's results.
     
@@ -959,7 +960,7 @@ def separationIndexForMultipleSeries(indices, column_name):
     for measurement_index in indices:
         
         measurement = ORIGINAL_DATAFRAME.loc[measurement_index, column_name]
-        separation_indices = separationIndexForSingleSeries(measurement, column_name)
+        separation_indices = separationIndexForSingleSeries(measurement, column_name,x)
         indices_for_separation.append(separation_indices)
         
     return indices_for_separation
@@ -1297,15 +1298,21 @@ else:
     unfiltered_MvsT_indices = getMeasurementMvsT(MAGNETIC_FIELDS_OF_INTEREST)
     MvsT_INDICES = filterMeasurementIndices(unfiltered_MvsT_indices)
     test_MvsT = copy.deepcopy(MvsT_INDICES)
+    #loop list Xidest (0.01, 0.1, 0.5)
     separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")# the indices where the separation is going to be done
     
-    #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
-    SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
-    # except IndexError as ie:
-    #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+    try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
+        SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+        DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
         
-    DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
-    
+    except IndexError:
+        print('EEEEEEEEEEEEEEEERRRRRRRRRRRRRRROOOOOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRRRRRRRRR')
+        # raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+        separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)", x=0.5)# the indices where the separation is going to be done
+        SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+        DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
+        
+
     plotMvsT(DICT_MvsT)
     
     setColumnForType(MvsT_INDICES, "MvsT")
@@ -1336,19 +1343,22 @@ else:
     
     #test_MvsH2 = copy.deepcopy(SEPARATED_MvsH)
     
-    SEPARATED_MvsH = removeBleedingElement(SEPARATED_MvsH)
-    correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
-    CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
-    
-    interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
-    
-    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
-    
-    plotMvsH(DICT_MvsH)
-    
-    setColumnForType(MvsH_INDICES, "MvsH")
-    addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
-    appendAndSave(DICT_MvsH, "MvsH")
+#    SEPARATED_MvsH = removeBleedingElement(SEPARATED_MvsH)
+    try:
+        correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
+        CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
+        
+        interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
+        
+        DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
+        
+        plotMvsH(DICT_MvsH)
+        
+        setColumnForType(MvsH_INDICES, "MvsH")
+        addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
+        appendAndSave(DICT_MvsH, "MvsH")
+    except:
+       print("väljasõltuvuseerror")
 
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')

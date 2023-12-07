@@ -1306,7 +1306,7 @@ else:
         DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
         
     except IndexError:
-        print('EEEEEEEEEEEEEEEERRRRRRRRRRRRRRROOOOOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRRRRRRRRR')
+        print('temp sõltuvuse error')
         # raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
         separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)", x=0.5)# the indices where the separation is going to be done
         SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
@@ -1357,8 +1357,8 @@ else:
         setColumnForType(MvsH_INDICES, "MvsH")
         addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
         appendAndSave(DICT_MvsH, "MvsH")
-    except:
-       print("väljasõltuvuseerror")
+    except IndexError:
+       print("välja sõltuvuse error")
 
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')

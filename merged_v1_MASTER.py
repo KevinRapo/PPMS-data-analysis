@@ -27,17 +27,15 @@ root = tk.Tk()
 root.wm_attributes('-topmost', 1)
 root.withdraw()
 
-
-#save_to_path = os.path.dirname(file_path)
         
 def askNewDatafilePath():
     """
-    ask for user input for a datafile
+    Ask for user input for a datafile.
 
     Returns
     -------
-    file_path : string
-        file path for the measurement file
+    file_path : STRING
+        File path for the measurement file
 
     """
     
@@ -48,19 +46,19 @@ def askNewDatafilePath():
 
 def readDatafile(file_path):
     '''
-    Reads in the data file and separates the header and measurement info
+    Reads in the data file and separates the header and measurement info into pandas dataframes.
     
     Parameters
     ----------
-    file_path : string
+    file_path : STRING
         file path for the measurement file
 
     Returns
     -------
-    header : pandas dataframe
+    header : PANDAS DATAFRAME
         header info   
-    data : pandas dataframe
-        measurement info
+    data : PANDAS DATAFRAME
+        measurement data
 
     '''
     #Opens the selected data file
@@ -83,22 +81,23 @@ def readDatafile(file_path):
  
 def determineDatafileType(header):
     """
-    determine if its VSM or ACMS datafile
-    Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. IN VSM the columns is named Moment (emu), while in ACMS its named DC Moment (emu)
+    Determine if its VSM or ACMS datafile.
+    
+    Headers of VSM and ACMS files are similiar. DATA columns of those files have a difference in the Moment column. 
+    In VSM the column is named Moment (emu), while in ACMS its named DC Moment (emu)
 
     Parameters
     ----------
-    header : pandas dataframe
-        measurement file header
+    header : PANDAS DATAFRAME
+        Measurement file header
 
     Returns
     -------
-    token : string
-        data file type
+    token : STRING
+        Data file type, "VSM" or "ACMS"
 
     """
-    global option_specific_line, test_line
-    #data_type checks from the first line under the header whether the file is VSM or ACMS and returns a token for further use
+
     token = "error - unknown datafile format"
     
     option_specific_line = header.iloc[1, 0]
@@ -112,53 +111,73 @@ def determineDatafileType(header):
         token = "ACMS"
         
     return token
-
-        
-
-def extractFloatWithUnit(string):
+    
+    
+def headerValueCheck(header, sample_property):
     """
-    text parsing function to help with sample parameters
-
+    Text parsing function to return sample property value and unit from the header if they exist.
+    
+    Uses a helper function extractFloatWithUnit to parse the property.
+    
     Parameters
     ----------
-    string : string
-        The parameter string to examine.
+    header : PANDAS DATAFRAME
+        measurement file header.
+    sample_property : STRING
+        PROPERTY TO CHECK.
 
     Returns
     -------
-    float_val : float
-        Sample parameter value.
-    unit : string
-        Sample parameter unit.
-
+    float_val : TYPE
+        description.
+    unit : TYPE
+        DESCRIPTION.
+        
+        
+    None : Retuns None if no match found
     """
-    #extract_float_with_unit function uses regex to index the input string
-    #into a (float, unit) format if it has units, if no units (float, None) format, if no value (None)
-    regex = r'^([\d.]+)\s*([a-zA-Z]+(\d)?)?$'# regular expression to match float value and unit
-    match = re.search(regex, string)
     
-    if match:
-        float_str = match.group(1)
-        unit = match.group(2)
-        float_val = float(float_str)
-        print(f"SAMPLE MASS :{float_val}, {unit}")
-        return (float_val, unit)
-    else:
-        return None
-    
-    
-# text parsing function before   extractFloatWithUnit function, returns Header property value and unit
-def headerValueCheck(header, sample_property):
-    #header_value_check checks the value of interest, is the value nan or is it just a string in 
-    #the wrong format, otherwise outputs the float value
     header_column = header['2']
 
-    print(f"Checking:{sample_property}, {header_column[sample_property]}")#Hetkel jääb
+    print(f"Checking:{sample_property}, {header_column[sample_property]}")
     
     if not isinstance(header_column[sample_property], str) and np.isnan(header_column[sample_property]): #Checks whether the value is not a string and if it is a nan value
         print(f"NO VALID VALUE FOR {sample_property}, value is NAN \n")
         return None
     
+    def extractFloatWithUnit(string):
+        """
+        Text parsing helper function to help with sample properties, uses regex to separate the input string into
+        a (float, unit) format if it has units, if no units (float, None) format, if no value (None)
+        
+        Parameters
+        ----------
+        string : STRING
+            the parameter string to examine.
+
+        Returns
+        -------
+        float_val : FLOAT
+            sample parameter value.
+        unit : STRING
+            sample parameter unit.
+            
+            
+        None : Returns None if no match found
+        """
+
+        regex = r'^([\d.]+)\s*([a-zA-Z]+(\d)?)?$'
+        match = re.search(regex, string)
+        
+        if match:
+            float_str = match.group(1)
+            unit = match.group(2)
+            float_val = float(float_str)
+            print(f"SAMPLE MASS :{float_val}, {unit}")
+            return (float_val, unit)
+        else:
+            return None
+        
     match = extractFloatWithUnit(header_column[sample_property])
     
     if match is None: #condition for extract_float_with_unit when it didn't find a match for a desired format therefore being a string
@@ -166,15 +185,29 @@ def headerValueCheck(header, sample_property):
         return None
     
     float_val = match[0]
-    #print("float value:", float_val)#Hetkel jääb
+
     unit = match[1]
-    #print("units:", unit)#Hetkel jääb
+
     
-    return float_val, unit #Ühikutega peaks veel midagi tegema
+    return float_val, unit
   
 
-#returned parsed MASS from Header
 def getMassInGrams(header):
+    """
+    Returns parsed MASS from Header
+
+    Parameters
+    ----------
+    header : PANDAS DATAFRAME
+        Measurement file header
+
+    Returns
+    -------
+    mass : FLOAT
+        Mass in grams.
+
+    """
+    
     #If the mass > 1, indicating that it's input is in mg, divides it by a 1000 to get g
     parameter = "SAMPLE_MASS"
     
@@ -193,7 +226,6 @@ def getMassInGrams(header):
     if unit == 'mg':
         return mass/1000
     
-    
     if unit is None and mass > 1:
         mass= mass/1000
         print(f'Sample mass is {mass:.5f} grams \n')
@@ -203,6 +235,21 @@ def getMassInGrams(header):
 
 #Parsed sample size
 def getAreaCM2(header):
+    """
+    Returns parsed area if it's in the header
+
+    Parameters
+    ----------
+    header : PANDAS DATAFRAME
+        Measurement file header.
+
+    Returns
+    -------
+    area : FLOAT
+        Area value
+    
+    None : Returns None if no match
+    """
     #If the mass > 1, indicating that it's input is in mg, divides it by a 1000 to get g
     parameter = "SAMPLE_SIZE"
     
@@ -225,18 +272,36 @@ def getAreaCM2(header):
 # ei tea kas päris nii ikka teha
 #Parsed thickness
 def getThickness(data):
+    """
+    Checks if the datafile title (from the header) contains the sample thickness,
+    usually not there but just in case does the control.
+
+    Parameters
+    ----------
+    data : PANDAS DATAFRAME
+        Measurement file header
+
+    Returns
+    -------
+    float_val : FLOAT
+        Thickness value
+    None : Return None if no match
+
+    """
     #Checks whether the title contains sample thickness in nm units: e.g. "25nm" and outputs 25
     try:
         thickness = data.iloc[3,1] #Title index in table
         pattern = r"(\d+)\s*(nm)"
         match = re.search(pattern,thickness)
+        
         if match:
             float_str = match.group(1)
             print(f"Checking thickness: {float_str} nm")
-            #unit = match.group(2)
             float_val = float(float_str)*10**-7 # nm to cm conversion
             print(f"Sample thickness is: {float_val} cm \n" )
+            
             return float_val
+        
         else:
             print("Sample thickness not found in title \n")
             return None
@@ -248,13 +313,33 @@ def getThickness(data):
 
 #---------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Recognizes what measurement types are present in the file. Returns two Pandas.Series: temperatures_of_interest, magnetic_fields_of_interest
-# Mida peaks tagastama errori korral?
-
 def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, min_count = 5):
+    """
+    Recognizes what measurement types are present in the file.
+    
+    Returns the temperatures and magnetic fields where the MvsH and MvsT measurements were made
+
+    Parameters
+    ----------
+    measurement_table : PANDAS DATAFRAME
+        Measurement file data.
+    discrete_detection_ration : FLOAT, optional
+        Discrete detection ratio. The default is 0.02.
+    min_count : INT, optional
+        Min amount of instances of a measurement to pass the level!?. The default is 5.
+
+    Returns
+    -------
+    temperatures_of_interest : PANDAS SERIES
+        MvsH measurement temperatures.
+    magnetic_fields_of_interest : PANDAS SERIES
+        MvsT measurement fields.
+
+    """
+    global tempCount
     #Checks what measurements the file contains
     
-    rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=0)
+    rounded_dataset_T = measurement_table["Temperature (K)"].round(decimals=1)
     rounded_dataset_H = measurement_table["Magnetic Field (Oe)"]#.round(decimals=0)
     
     #returnitavad Seried
@@ -310,12 +395,28 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
 
 #----------------------------------------MvsH specific functions-------------------------
 
-#Measurement indices based on the const T values
-def getMeasurementMvsH(const_T_values, bound = 0.15):
+def getMeasurementMvsH(const_T_values, bound = 1):
+    """
+    Saves the initial row indices of data point values that fall between the MvsH bound from the constant temperature points for further filtering.
+    Returns them in a nested list.
+
+    Parameters
+    ----------
+    const_T_values : PANDAS SERIES OF FLOATS
+        Measurement temperatures.
+    bound : FLOAT, optional
+        The plus/min bound from the constant value to choose elements by. The default is 1.
+
+    Returns
+    -------
+    row_indices : LIST OF LIST OF INT
+        Nested list with int indices at each const temp bound.
+
+    """
     #Saves all the indices of the points that fall between the bound
     table = ORIGINAL_DATAFRAME[['Temperature (K)', "color"]]
     filtered_dfs = []
-    all_indices = []
+    row_indices = []
     
     for value in const_T_values:
         lower = value - bound
@@ -323,45 +424,39 @@ def getMeasurementMvsH(const_T_values, bound = 0.15):
         filtered_df = table[(table['Temperature (K)'] >= lower) & (table['Temperature (K)'] <= upper) & (table['color'] == "black") ]
         indices = filtered_df.index.tolist()
         filtered_dfs.append(filtered_df)
-        all_indices.append(indices)
+        row_indices.append(indices)
         
-    return all_indices #filtered_dfs
+    return row_indices #filtered_dfs
 
-# #sorting function for max H value/HETKEL EI OLE VAJA SEDA
-# def sortFieldValues(pair_indices):
-#     # pair_indices = copy.deepcopy(pair_indices_original)
-#     # copy_list = []
+
+def removeBleedingElement(pairs):
+    """
+    This function ensures that there is no value "bleeding" from the next pair due to the way
+    separationIndexForSingleSeries function slices multiple measurements made on the same const value.
     
-#     for pair in pair_indices:
-#         first_idx = pair[0]
-#         first_val = ORIGINAL_DATAFRAME.loc[first_idx, "Magnetic Field (Oe)"]
+    Special case when the first element from the next measurement "bleeds" into the previous measurement,
+    the function uses a ratio = first_part_max/second_part_max to determine if the first and second part
+    have the same max value and removes the second part last element if the ratio is out of bounds.
+    
+    Parameters
+    ----------
+    pairs : LIST OF LIST OF DATAFRAMES
+        Nested list with dataframe pairs for the measurements.
 
-#         #print(f"{first_val=}\n")
-        
-#         while pair:
-#             idx = pair[-1]
-#             #print(f"{idx=}")
-#             val_to_compare = ORIGINAL_DATAFRAME.loc[idx, "Magnetic Field (Oe)"]
-#             #print(f"{val_to_compare=}")
-            
-#             if val_to_compare < first_val:
-#                 break
-            
-#             pair.pop()
-#             # print(f"{popped=}")
-            
-#     return None
+    Returns
+    -------
+    new_pairs : LIST
+        "pairs" list with removed elements, if there were any to remove.
 
-def sortTest(pairs):
-    # global first, second
+    """
+
     new_pairs = []
 
     for pair in pairs:
-        # first1 = pair[0]#["Magnetic Field (Oe)"]
-        # first = first1.copy()
+        
         first = pair[0]
-        # print(type(first))
-        second = pair[1]#["Magnetic Field (Oe)"]
+        
+        second = pair[1]
         
         try:
             first_max = max(first["Magnetic Field (Oe)"])
@@ -371,17 +466,13 @@ def sortTest(pairs):
             error_message = "Change separationIndexForSingleSeries argument n for correct extrema points"
             showExtremaError(error_message)
         
-        # print(f"{first_max=}")
-        # print(f"{second_max=}")
-        # print(f"{ratio=}\n")
         new_list = []
-        #print(f"{ratio=}")
+
         while not 0.9 < ratio < 1.1:
             if ratio < 0.9:
 
                 second = second[:-1]
                 ratio = first_max/max(second["Magnetic Field (Oe)"])
-                #print(f"{ratio=}")
                 
             elif ratio > 1.1:
 
@@ -394,8 +485,21 @@ def sortTest(pairs):
         
     return new_pairs
 
-#Rounds the min/max field for each MvsH correction
 def roundFieldForCorrection(pairs):
+    """
+    Returns the max field value for each individual MvsH measurement pair for correction fit
+
+    Parameters
+    ----------
+    pairs : LIST OF LIST OF DATAFRAMES
+        Nested list with dataframe pairs for the measurements.
+
+    Returns
+    -------
+    values : LIST OF INT
+        List with max field values for each measurement.
+
+    """
     #rounds the magnetic field to a nice number (100041.221 -> 100000)
     values = []
     for pair in pairs:
@@ -423,6 +527,23 @@ def roundFieldForCorrection(pairs):
     return values
 
 def searchCorrectionTable(folder_path, number):
+    """
+    Searches for the correction table that is closest to the measurement max field value,
+    returns the file path.
+
+    Parameters
+    ----------
+    folder_path : STRING
+        Folder path for the correction tables folder.
+    number : INT
+        Measurement max field value.
+
+    Returns
+    -------
+            STRING
+        File path for the closest correction table.
+
+    """
     closest_match = None
     min_difference = float('inf')  # Initialize with positive infinity
     
@@ -446,24 +567,55 @@ def searchCorrectionTable(folder_path, number):
     
 CORRECTION_FOLDER_PATH = os.path.join(USER_PATH,'PdCorrection tables')
 
-def CorrectionTableToDict(numbers_to_search):
+def CorrectionTableToDict(correctionField_values):
+    """
+    Returns the corresponding amount of correction tables for each unique min/max field value
+    in a dictionary form with the key being the value the table is for.
+
+    Parameters
+    ----------
+    correctionField_values : INT
+        Correction field max values.
+
+    Returns
+    -------
+    correction_tables : DICT OF {int : Dataframe}
+        Dictionary with max_field_value : values_at_that_field format.
+
+    """
     #returns the corresponding amount of correction tables for each unique min/max measurement value in a dictionary form with the key being the value the table is for
-    error_tables = {}
+    correction_tables = {}
     
-    for nr in numbers_to_search:
-        error_table_path = searchCorrectionTable(CORRECTION_FOLDER_PATH, nr)
+    for nr in correctionField_values:
+        correction_table_path = searchCorrectionTable(CORRECTION_FOLDER_PATH, nr)
         
-        if error_table_path is None:
+        if correction_table_path is None:
             print(f"{nr} Oe jaoks ei leia parandustabelit ")
             continue
-        error_table_measurements = pd.read_csv(error_table_path, index_col=0, encoding="ANSI")
-        error_tables[nr] = error_table_measurements
+        correction_table_measurements = pd.read_csv(correction_table_path, index_col=0, encoding="ANSI")
+        correction_tables[nr] = correction_table_measurements
         
-    return error_tables
+    return correction_tables
 
-def interpolateTrueField(magnetic_field_values, error_table_measurements):
-    x = error_table_measurements["Magnetic Field (Oe)"]
-    y = error_table_measurements["True Field (Oe)"]
+def interpolateTrueField(magnetic_field_values, correction_tables):
+    """
+    Uses the correction table to interpolate the correct values for the measurement
+
+    Parameters
+    ----------
+    magnetic_field_values : SERIES OF FLOAT
+        One part of the measured MvsH field values.
+    correction_tables : DATAFRAME
+        Correction table in dataframe format.
+
+    Returns
+    -------
+    true_field_interpolated : NUMPY.NDARRAY
+        Interpolated correction values based on the measurement points.
+
+    """
+    x = correction_tables["Magnetic Field (Oe)"]
+    y = correction_tables["True Field (Oe)"]
 
     # Create an interpolation function
     interp_func = interp1d(x, y, kind='linear', fill_value='extrapolate')
@@ -472,9 +624,24 @@ def interpolateTrueField(magnetic_field_values, error_table_measurements):
     true_field_interpolated = interp_func(magnetic_field_values)
     return true_field_interpolated
 
-def interpolateMvsH(separated_MvsH, error_tables):
-    #Adds the true field values column to the existing measurement dataframes
-    global true_field_interpolated, val
+def interpolateMvsH(separated_MvsH, correction_tables):
+    """
+    Adds the true field values column to the existing measurement dataframes.
+
+    Parameters
+    ----------
+    separated_MvsH : LIST OF LIST OF DATAFRAMES
+        Nested list with MvsH measurements dataframes.
+    correction_tables : DICT OF {int : Dataframe}
+        Dict with the correction tables, field_value : values_at_that_field format.
+
+    Returns
+    -------
+    interpolated_dict : LIST OF LIST OF DATAFRAMES
+        "separated_MvsH" with the added true field column
+
+    """
+
     interpolated_dict = {}
     for pair in separated_MvsH:
         
@@ -492,7 +659,7 @@ def interpolateMvsH(separated_MvsH, error_tables):
         elif first_max < second_max:
             max_range = second_max
             
-        for key in error_tables:
+        for key in correction_tables:
             if key - 200 <= max_range <= key + 200:
 
                 #print(f"{max_range} kukub {key} vahemikku")
@@ -501,20 +668,40 @@ def interpolateMvsH(separated_MvsH, error_tables):
                     
                     magnetic_field_values = val["Magnetic Field (Oe)"]
                     # print(len(magnetic_field_values))
-                    true_field_interpolated = interpolateTrueField(magnetic_field_values, error_tables[key])
+                    true_field_interpolated = interpolateTrueField(magnetic_field_values, correction_tables[key])
+                    #print(type(true_field_interpolated))
                     # print(len(true_field_interpolated))
                     val["True Field (Oe)"] = true_field_interpolated
                                 
-    return interpolated_dict
+    return interpolated_dict #!!1 siin vaata üle func returnib aga ei omista muutujale
 
-def plotMvsH(raamat, const_T_values):
+def plotMvsH(dict_MvsH):
+    """
+    Plots the MvsH measurement pictures wtih a legend where it specifies the ascending and descending part with different shades.
+    Plots the original field and true field values separately with different colors.
+    
+    It also saves the figures in the same folder the measurement file is in.
+
+    Parameters
+    ----------
+    dict_MvsH : DICT OF {float : list of list of dataframes}
+        Dictionary with MvsH measurements, temp_values : measurement_dataframes format.
+
+    Returns
+    -------
+    Direct return None but saves the plots in a dedicated folder.
+
+    """
     #Plots the MvsH measurement pair with different colors
     
-    for key1 in raamat:
+    for key1 in dict_MvsH:
         
         i_pair = 1
         
-        for df in raamat[key1]:
+        for df in dict_MvsH[key1]:
+            
+            colorIdx = df[0].iloc[1].name
+            Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
             
             fig, ax = plt.subplots()
             H1 = df[0]["Magnetic Field (Oe)"]
@@ -522,9 +709,8 @@ def plotMvsH(raamat, const_T_values):
             H2 = df[1]["Magnetic Field (Oe)"]
             M2 = df[1]["Moment (emu)"] 
             
-            colorIdx = df[0].iloc[1].name
-            
-            Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
+            ax.plot(H1 ,M1, color = "grey", label = "Descending")#!!! mis siin värvidega jääb
+            ax.plot(H2, M2, color = "grey", label = "Ascending")
             
             if "True Field (Oe)" in df[0]:
                 
@@ -532,10 +718,6 @@ def plotMvsH(raamat, const_T_values):
                 H2_true = df[1]["True Field (Oe)"]   
                 ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
                 ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
-            
-            ax.plot(H1 ,M1, color = "grey", label = "Descending")#!!! mis siin värvidega jääb
-            ax.plot(H2, M2, color = "grey", label = "Ascending")
-            
             
             const_val = int(key1)
             
@@ -553,26 +735,52 @@ def plotMvsH(raamat, const_T_values):
     return None
 #-----------------------------MvsT specific functions--------------------------------
 
-#Measurement indices based on the const H values
-def getMeasurementMvsT(const_H_values):
-    #Saves all the indices of the points that are equal to the predetermined H value
-    row_indices = []
-    table = ORIGINAL_DATAFRAME['Magnetic Field (Oe)']
-    
-    for value in const_H_values:
+def getMeasurementMvsT(const):
+    """
+    Saves the initial row indices of the MvsT measurement points that are equal to the const field value.
 
-        indices = table.index[table == value].tolist()
-        row_indices.append(indices)
+    Parameters
+    ----------
+    const : LIST OF FLOAT
+        Measurement temperatures as floats.
+
+    Returns
+    -------
+    row_indices : LIST OF LIST OF INT
+        Nested list with row indices at each const field
+
+    """
+    #Saves all the indices of the points that are equal to the predetermined H value
+    row_indices = {}
+    table = ORIGINAL_DATAFRAME['Magnetic Field (Oe)']
+
+    indices = table.index[table == const].tolist()
+    row_indices[const] = indices
 
     return row_indices
 
-def plotMvsT(raamat, const_H_values):
-    #Plots the MvsT measurement pair with different colors
+def plotMvsT(dict_MvsT):
+    """
+    Plots the MvsT measurement pictures wtih a legend where it specifies the ascending and descending part with different shades.
+    
+    If there are multiple measurements on the same field, plots them on the same graph.
+    It also saves the figures in the same folder the measurement file is in.
+    
+    Parameters
+    ----------
+    dict_MvsT : DICT OF {float : list of list of dataframes}
+        Dictionary with MvsT measurements, field_value : measurement_dataframes format.
+
+    Returns
+    -------
+    Direct return None but saves the plots in a dedicated folder.
+
+    """
    
-    for key in raamat:
+    for key in dict_MvsT:
         fig, ax = plt.subplots()
         i_pair = 1
-        for df in raamat[key]:
+        for df in dict_MvsT[key]:
 
             
             T1 = df[0]["Temperature (K)"]
@@ -600,6 +808,20 @@ def plotMvsT(raamat, const_H_values):
 
 #Separates all the series in the indices that grow by one and returns the longest one, that one being the measurement indices
 def filterMeasurementIndices(unfiltered_indices):
+    """
+    Filters the measurement indices so that the longest consecutive list is the measurement.
+
+    Parameters
+    ----------
+    unfiltered_indices : LIST OF LIST OF INT
+        Nested list with unfiltered measurement data indices.
+
+    Returns
+    -------
+    filtered : LIST OF LIST OF INT
+        Nested list with filtered measurement data indices.
+
+    """
     filtered = []
     
     for unfiltered in unfiltered_indices:
@@ -626,24 +848,35 @@ def filterMeasurementIndices(unfiltered_indices):
 
 
 #Returns the separation indices for ascending and descending points based on the extrema
-def separationIndexForSingleSeries(data, column_name, n = 100): # https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
+def separationIndexForSingleSeries(data, column_name, x): #!!! https://stackoverflow.com/questions/48023982/pandas-finding-local-max-and-min
     """
-    Find local peaks indices (maxima and minima) in a DataFrame or Series.
+    Returns the indices of the series local peaks (maxima and minima) in a list
 
-    Parameters:
-    - data: DataFrame or Series.
-    - column_name: Name of the column to analyze.
-    - n: Number of points to be checked before and after.
+    Parameters
+    ----------
+    data : SERIES OF FLOAT.
+        The series to analyze.
+    column_name : STRING
+        Name of the column to analyze based on the measurement.
+    x : FLOAT
+        Percentage parameter, determines the percentage of n (number of points to compare around the extrema) to use. 
 
-    Returns:
-    - DataFrame with 'min' and 'max' columns indicating local minima and maxima.
+    Returns
+    -------
+    min_indices : PANDAS.INDEX
+        Series minima index (int) values 
+    max_indices : PANDAS.INDEX
+        Series maxima index (int) values
     """
     
     if isinstance(data, pd.Series):
         # Convert a Series to a DataFrame with a specified column name
         data = pd.DataFrame({column_name: data})
-    
+        
     index = data.index
+    
+    n = int(x*len(data))
+    #print(f"n for this run: {n}")
     
     # Find local peaks
     relative_min_indices = argrelextrema(data[column_name].values, np.less_equal, order=n)[0]
@@ -652,17 +885,26 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
     min_indices = index[relative_min_indices]
     max_indices = index[relative_max_indices]
     
-    #sort indices helper function
+    title = ""
+    
     def removeSpecialCaseIndex():
-        nonlocal data, min_indices, max_indices
-        
+        """
+        Helper function that removes the first min/max index if it's value is near 0 tesla
+        because it is not needed from the data perspective. All the points from the first removed
+        index till the next index will be removed from the data plot due to this.
+        """
+        nonlocal data, min_indices, max_indices, title
+
         if column_name == "Magnetic Field (Oe)":
-            first_index = min_indices[0]
-            first_val = data.loc[first_index, column_name]
-            print(f"{min_indices[0]=}")
-            print(f"{first_val=}")
-            if first_val < 1:
-                min_indices = min_indices[1:]
+            
+            if not len(max_indices) == 1:
+                title = "(Esimene min indeks eemaldatud)"
+                first_index = min_indices[0]
+                first_val = data.loc[first_index, column_name]
+                # print(f"{first_index=}")
+                # print(f"{first_val=}")
+                if -1 < first_val < 1:
+                    min_indices = min_indices[1:]
                 
     removeSpecialCaseIndex()
     
@@ -684,91 +926,132 @@ def separationIndexForSingleSeries(data, column_name, n = 100): # https://stacko
     plt.scatter(index, local_peaks['min'], c='r', label='Minima')
     plt.scatter(index, local_peaks['max'], c='g', label='Maxima')
     plt.plot(index, data[column_name], label=column_name)
-    plt.title("Test title")
+    plt.title(f"Extrema graph \n {title}")
     plt.legend()
     plt.show()
         
     return min_indices, max_indices
 
 # Iterates the functionality of separationIndexForSingleSeries 
-def separationIndexForMultipleSeries(indices, column_name):
+def separationIndexForMultipleSeries(indices, column_name, x=0.1):
+    """
+    Iterates the separationIndexForSingleSeries function over all the separate indices and appends it's results.
+    
+    This is used for separating single measurements made on the same const value into two ascending/descending pair.
+
+    Parameters
+    ----------
+    indices : LIST OF LIST OF INT
+        Nested list with measurement indices.
+    column_name : STRING
+        Name of the column to analyze based on the measurement.
+
+    Returns
+    -------
+    indices_for_separation : LIST OF TUPLE OF (pandas.Index,pandas.Index)
+        List with the indices (int) for the separation in a tuple.
+
+    """
     indices_for_separation = []
     
     for measurement_index in indices:
         
-        measurement = ORIGINAL_DATAFRAME[column_name].loc[measurement_index]
-        separation_indices = separationIndexForSingleSeries(measurement, column_name)
+        measurement = ORIGINAL_DATAFRAME.loc[measurement_index, column_name]
+        separation_indices = separationIndexForSingleSeries(measurement, column_name,x)
         indices_for_separation.append(separation_indices)
         
     return indices_for_separation
 
-def separateMeasurementWithColorIdx(separation_index, measurement_indices, column):
-    #Separates the points based on the separation indices and returns the separated series in pairs
-    #Assigns a unique color to each pair
+def separateMeasurementWithColorIdx(indices_for_separation, measurement_indices, column_name):
+    """
+    Separates the points based on the separation indices and returns the separated series in pairs
 
-    separated_pair = []
+    Parameters
+    ----------
+    indices_for_separation : LIST OF TUPLE OF (pandas.Index,pandas.Index)
+        List with the indices (int) for the separation in a tuple..
+    measurement_indices : LIST OF LIST OF INT
+        Nested list with measurement indices.
+    column_name : STRING
+        Name of the column to use based on the measurement.
+
+    Returns
+    -------
+    separated_pair : LIST OF LIST OF DATAFRAME
+        DESCRIPTION.
+    pair_indices : TYPE
+        DESCRIPTION.
+
+    """
+    
+    separated_pair_all = []
     pair_indices = []
     
-    if not isinstance(separation_index, list):
-        separation_index = [separation_index]
+    if not isinstance(indices_for_separation, list):
+        indices_for_separation = [indices_for_separation]
     
-    for min_max_index in separation_index:
+    color_index = 0
+    
+    for min_max_index in indices_for_separation: 
         
-        if min_max_index[0][0] < min_max_index[1][0]: #kontroll selleks et kas andmed on + - + või - + -
+        if min_max_index[0][0] < min_max_index[1][0]: #First assigns the correct indices, assumes data is shaped as + - + or - + -
             min_index_list = min_max_index[0].tolist()
             max_index_list = min_max_index[1].tolist()
         else:
             min_index_list = min_max_index[1].tolist()
             max_index_list = min_max_index[0].tolist()
     
-        j = 0
+        iteration_index = 0
         
-        for indices in measurement_indices:
+        for indices in measurement_indices: #Iterates through the separate indices and separates them
     
-            tabel = ORIGINAL_DATAFRAME[[column,"Moment (emu)"]].loc[indices] #VB SIIA VÄRV PANNA KUI EI OLE VAHET
+            measurement = ORIGINAL_DATAFRAME[[column_name,"Moment (emu)"]].loc[indices]
         
-            for max_index in max_index_list:
+            for max_index in max_index_list: #Slices them from min to max and from max to min pairs
                 
-                separated = []
-                index1 = []
-                index2 = []
-                if max_index in indices:
+                separated_pair = []
+                indices_pair1 = []
+                indices_pair2 = []
+                
+                if max_index in indices: #Checks if 
                     
-                    sliced1 = tabel.loc[min_index_list[j]:max_index] #paaride data
-                    separated.append(sliced1)
+                    sliced1 = measurement.loc[min_index_list[iteration_index]:max_index] #paaride data
+                    separated_pair.append(sliced1)
                     
-                    ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index, "color"] = COLORS[0] #värvid paaridele
+                    ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index, "color"] = COLORS[color_index] #värvid paaridele
                     
-                    index1 = ORIGINAL_DATAFRAME.loc[min_index_list[j]:max_index].index.tolist() #paaride indeksid
+                    indices_pair1 = ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index].index.tolist() #paaride indeksid
                     
-                    if j == len(min_index_list) - 1:
-                        sliced2 = tabel.loc[max_index+1:min_index_list[j]]
+                    if iteration_index == len(min_index_list) - 1:
+                        sliced2 = measurement.loc[max_index+1:min_index_list[iteration_index]]
                         
-                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j], "color"] = COLORS[0]
+                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index], "color"] = COLORS[color_index]
                         
-                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j]].index.tolist()
+                        indices_pair2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index]].index.tolist()
                         
                     else:
-                        sliced2 = tabel.loc[max_index+1:min_index_list[j+1]]
+                        sliced2 = measurement.loc[max_index+1:min_index_list[iteration_index+1]]
                         
-                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1], "color"] = COLORS[0]
+                        ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index+1], "color"] = COLORS[color_index]
                         
-                        index2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[j+1]].index.tolist()
+                        indices_pair2 = ORIGINAL_DATAFRAME.loc[max_index+1:min_index_list[iteration_index+1]].index.tolist()
                 else:
-                    max_index_list = max_index_list[j:]
+                    max_index_list = max_index_list[iteration_index:]
 
                     break
                 
-                pair_indices.append(index1 + index2)
-                separated.append(sliced2)
-                separated_pair.append(separated)
+                pair_indices.append(indices_pair1 + indices_pair2)
+                separated_pair.append(sliced2)
+                separated_pair_all.append(separated_pair)
                 
-                COLORS.pop(0)
-                j += 1
-        
-    return separated_pair, pair_indices
+                color_index += 1
+                iteration_index += 1
+                if color_index == len(COLORS): #if the colors are used up it goes back to the beginning
+                    color_index = 0
+                    
+    return separated_pair_all, pair_indices
 
-def separateIntoDictValuePair(separated_pairs, const_val, column, token):
+def separateIntoDictValuePair(separated_pairs, const_val, column_name, token):
     # Creates a dict{const value the measurement was made at: measurement} 
     raamat = {}
     
@@ -777,7 +1060,7 @@ def separateIntoDictValuePair(separated_pairs, const_val, column, token):
         for val in separated_pairs:
             
             index_to_check = val[0].index[0]
-            val_to_check = ORIGINAL_DATAFRAME[column].iloc[index_to_check]
+            val_to_check = ORIGINAL_DATAFRAME[column_name].iloc[index_to_check]
             
             #Rounds the values if the measurement needs to check for MvsH, for MvsT can use direct == becasue they are precise
             val_to_check, const = (round(val_to_check), round(const)) if token == "MvsH" else (val_to_check, const)
@@ -803,15 +1086,17 @@ def plotMeasurementTimeseries():
     # Plot data on each subplot
     time_axis = "Time Stamp (sec)"
     ORIGINAL_DATAFRAME.plot(x=time_axis, y="Temperature (K)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[0])
-    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Moment (emu)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[1])
-    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Magnetic Field (Oe)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[2])
+    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Magnetic Field (Oe)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[1])
+    ORIGINAL_DATAFRAME.plot(x=time_axis, y="Moment (emu)", kind="scatter", c=ORIGINAL_DATAFRAME["color"].values, ax=axes[2])
     
     # Customize axes labels and other properties
     
-    axes[0].set_ylabel("Temperature (K)")
-    axes[1].set_ylabel("Moment (emu)")
-    axes[2].set_ylabel("Magnetic Field (Oe)")
+    axes[0].set_ylabel("Temperature (K)", fontsize = 8)
+    axes[1].set_ylabel("Magnetic Field (Oe)", fontsize = 8)
+    axes[1].tick_params(axis = "y", labelsize = 8)
+    axes[2].set_ylabel("Moment (emu)", fontsize = 8)
     axes[-1].set_xlabel("Time Stamp (sec)")
+    fig.suptitle("Timeseries \n (black dots are discarded from individual plots)", fontsize = 10)
     
     fig.savefig(os.path.join(folder_name,'timeseries.png'),bbox_inches = "tight", dpi = 200)
     
@@ -830,7 +1115,7 @@ def setColumnForType(indices, type_string):
     return None
 
 
-def addParameterColumns(separated, type_string): #!!! siia jäi error
+def addParameterColumns(separated, type_string):
     
     temp = "Temperature (K)"
     temp_unit = "K"
@@ -896,7 +1181,7 @@ def addParameterColumns(separated, type_string): #!!! siia jäi error
     return None
 
 # Siin on ka üks huvitav error kui file excelis avatud sama aeg siis ei luba uut üle salvestada
-def appendAndSave(dictionary, dType): #!!! siin salvestab ikka halva indeksi kaasa copy file puhul, pead kuidagi edaspidiseks salvestama uued indeksid
+def appendAndSave(dictionary, dType):
     i_key = 1
     
     for key in dictionary:
@@ -966,7 +1251,7 @@ if OPTION_TYPE == "VSM":
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "Moment (emu)", "M. Std. Err. (emu)"]].dropna()
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
     
-elif OPTION_TYPE == "ACMS":
+elif OPTION_TYPE == "ACMS": #!!! siia veel eraldi check et kas AC või DC
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME[["Time Stamp (sec)", "Temperature (K)", "Magnetic Field (Oe)", "DC Moment (emu)", "DC Std. Err. (emu)"]].dropna()
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.rename(columns={"DC Moment (emu)": "Moment (emu)", "DC Std. Err. (emu)": "M. Std. Err. (emu)"})
     ORIGINAL_DATAFRAME = ORIGINAL_DATAFRAME.reset_index(drop = True)
@@ -979,7 +1264,7 @@ THICKNESS = getThickness(HEADER)
 
 
 #Color list for color idx and initializing the starting color idx with just black
-COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange", "pink", "olive"]
+COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange", "pink", "olive", "magenta"]
 ORIGINAL_DATAFRAME["color"] = "black"
 
 print("_________chechMeasurementType2-----------")  #mis peaks olema selle funktsiooni ebaõnnestumise/veateade? return None? või lihtsalt kaks tühja Seriet?
@@ -1007,19 +1292,38 @@ else:
     print(' MvsT data detected')
     print(MAGNETIC_FIELDS_OF_INTEREST)
     
-    unfiltered_MvsT_indices = getMeasurementMvsT(MAGNETIC_FIELDS_OF_INTEREST)
+    unfiltered_MvsT_indices = getMeasurementMvsT(MAGNETIC_FIELDS_OF_INTEREST) # SELLE SAAB ÜHE INPUTIGA
+
+    def cycle(const):#TEE KÕIK FUNKTSIOONID NIIMOODI ÜMBER ET TERVE TSÜKKEL TEEB KÕIK MÖÖTMISED ÜHEL CONST VÄÄRTUSEL ALGUSEST LÕPUNI
+        unfiltered_MvsT_indices = getMeasurementMvsT(const)
+        MvsT_INDICES = filterMeasurementIndices(unfiltered_MvsT_indices)
+        separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")
+        return None
+
+    for const in MAGNETIC_FIELDS_OF_INTEREST:
+        try:
+            cycle(const)
+        except:
+            #mingi indikaator näiteks timeseries et need punktid feilisid
+            pass
     MvsT_INDICES = filterMeasurementIndices(unfiltered_MvsT_indices)
-    
+    test_MvsT = copy.deepcopy(MvsT_INDICES)
+    #loop list Xidest (0.01, 0.1, 0.5)
     separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)")# the indices where the separation is going to be done
     
-    #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
-    SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
-    # except IndexError as ie:
-    #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+    try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
+        SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+        DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
         
-    DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
-    
-    plotMvsT(DICT_MvsT, MAGNETIC_FIELDS_OF_INTEREST)
+    except IndexError:
+        print('temp sõltuvuse error')
+        # raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+        separation_index_MvsT = separationIndexForMultipleSeries(MvsT_INDICES, "Temperature (K)", x=0.5)# the indices where the separation is going to be done
+        SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+        DICT_MvsT = separateIntoDictValuePair(SEPARATED_MvsT, MAGNETIC_FIELDS_OF_INTEREST, "Magnetic Field (Oe)", "MvsT")
+        
+
+    plotMvsT(DICT_MvsT)
     
     setColumnForType(MvsT_INDICES, "MvsT")
     addParameterColumns(SEPARATED_MvsT, "MvsT")#this function modifies SEPARATED_MvsT which inturn modifies DICT_MvsT since it's a global mutable variable
@@ -1037,32 +1341,34 @@ else:
     print(' MvsH data detected')
     print(TEMPERATURES_OF_INTEREST)
     
-    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST, bound = 1)
+    unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     
     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
-    
+    # test_MvsH1 = copy.deepcopy(MvsH_INDICES)
     #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
     SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
     # except IndexError as ie:
     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
     
-    #uncomment sortFieldValues if needed for correct max value in the measurement pair
-    #sortFieldValues(MvsH_pair_indices)
+    #test_MvsH2 = copy.deepcopy(SEPARATED_MvsH)
     
-    SEPARATED_MvsH = sortTest(SEPARATED_MvsH)
-    correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
-    CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
-    
-    interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
-    
-    DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
-    
-    plotMvsH(DICT_MvsH, TEMPERATURES_OF_INTEREST)
-    
-    setColumnForType(MvsH_INDICES, "MvsH")
-    addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
-    appendAndSave(DICT_MvsH, "MvsH")
+#    SEPARATED_MvsH = removeBleedingElement(SEPARATED_MvsH)
+    try:
+        correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
+        CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
+        
+        interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
+        
+        DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
+        
+        plotMvsH(DICT_MvsH)
+        
+        setColumnForType(MvsH_INDICES, "MvsH")
+        addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
+        appendAndSave(DICT_MvsH, "MvsH")
+    except IndexError:
+       print("välja sõltuvuse error")
 
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
 print('--------<<<<<<<<<>>>>>>>>>>-----------')

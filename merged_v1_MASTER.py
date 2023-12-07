@@ -746,7 +746,7 @@ def getMeasurementMvsT(const):
 
     Returns
     -------
-    row_indices : LIST OF INT
+    indices : LIST OF INT
         List with row indices at each const field
 
     """
@@ -758,17 +758,17 @@ def getMeasurementMvsT(const):
 
     return indices
 
-def plotMvsT(MvsT, const):
+def plotMvsT(separated_pairs, const):
     """
-    Plots the MvsT measurement pictures wtih a legend where it specifies the ascending and descending part with different shades.
+    Plots the separated_pairs measurement pictures wtih a legend where it specifies the ascending and descending part with different shades.
     
     If there are multiple measurements on the same field, plots them on the same graph.
     It also saves the figures in the same folder the measurement file is in.
     
     Parameters
     ----------
-    MvsT : DICT OF {float : list of list of dataframes}
-        Dictionary with MvsT measurements, field_value : measurement_dataframes format.
+    separated_pairs : LIST OF LIST OF DATAFRAMES
+        Nested list with MvsT measurements.
 
     Returns
     -------
@@ -780,7 +780,7 @@ def plotMvsT(MvsT, const):
     fig, ax = plt.subplots()
     i_pair = 1
 
-    for pair in MvsT:
+    for pair in separated_pairs:
 
         
         T1 = pair[0]["Temperature (K)"]
@@ -850,8 +850,8 @@ def separationIndexForSingleSeries(indices, column_name, x = 0.1): #!!! https://
 
     Parameters
     ----------
-    data : SERIES OF FLOAT.
-        The series to analyze.
+    indices : SERIES OF INT.
+        The series indices.
     column_name : STRING
         Name of the column to analyze based on the measurement.
     x : FLOAT
@@ -859,10 +859,8 @@ def separationIndexForSingleSeries(indices, column_name, x = 0.1): #!!! https://
 
     Returns
     -------
-    min_indices : PANDAS.INDEX
-        Series minima index (int) values 
-    max_indices : PANDAS.INDEX
-        Series maxima index (int) values
+    min_max : LIST OF [pandas.Index(min), pandas.index(max)]
+        The min and max indices of the extrema points
     """
     data = ORIGINAL_DATAFRAME.loc[indices, column_name]
     
@@ -929,44 +927,44 @@ def separationIndexForSingleSeries(indices, column_name, x = 0.1): #!!! https://
     min_max = [min_indices, max_indices]
     return min_max 
 
-# Iterates the functionality of separationIndexForSingleSeries 
-def separationIndexForMultipleSeries(indices, column_name, x=0.1):
-    """
-    Iterates the separationIndexForSingleSeries function over all the separate indices and appends it's results.
+# # Iterates the functionality of separationIndexForSingleSeries 
+# def separationIndexForMultipleSeries(indices, column_name, x=0.1):
+#     """
+#     Iterates the separationIndexForSingleSeries function over all the separate indices and appends it's results.
     
-    This is used for separating single measurements made on the same const value into two ascending/descending pair.
+#     This is used for separating single measurements made on the same const value into two ascending/descending pair.
 
-    Parameters
-    ----------
-    indices : LIST OF LIST OF INT
-        Nested list with measurement indices.
-    column_name : STRING
-        Name of the column to analyze based on the measurement.
+#     Parameters
+#     ----------
+#     indices : LIST OF LIST OF INT
+#         Nested list with measurement indices.
+#     column_name : STRING
+#         Name of the column to analyze based on the measurement.
 
-    Returns
-    -------
-    indices_for_separation : LIST OF TUPLE OF (pandas.Index,pandas.Index)
-        List with the indices (int) for the separation in a tuple.
+#     Returns
+#     -------
+#     indices_for_separation : LIST OF TUPLE OF (pandas.Index,pandas.Index)
+#         List with the indices (int) for the separation in a tuple.
 
-    """
-    indices_for_separation = []
+#     """
+#     indices_for_separation = []
     
-    for measurement_index in indices:
+#     for measurement_index in indices:
         
-        measurement = ORIGINAL_DATAFRAME.loc[measurement_index, column_name]
-        separation_indices = separationIndexForSingleSeries(measurement, column_name,x)
-        indices_for_separation.append(separation_indices)
+#         measurement = ORIGINAL_DATAFRAME.loc[measurement_index, column_name]
+#         separation_indices = separationIndexForSingleSeries(measurement, column_name,x)
+#         indices_for_separation.append(separation_indices)
         
-    return indices_for_separation
+#     return indices_for_separation
 
-def separateMeasurementWithColorIdx(min_max_index, measurement_indices, column_name):
+def separateMeasurementWithColorIdx(min_max_index, measurement_indices, column_name): 
     """
     Separates the points based on the separation indices and returns the separated series in pairs
 
     Parameters
     ----------
-    indices_for_separation : LIST OF [pandas.Index,pandas.Index]
-        List with the indices (int) for the separation.
+    min_max_index : LIST OF [pandas.Index,pandas.Index]
+        List with the indices for the separation.
     measurement_indices : LIST OF INT
         List with measurement indices.
     column_name : STRING
@@ -986,11 +984,12 @@ def separateMeasurementWithColorIdx(min_max_index, measurement_indices, column_n
     
     color_index = 0
      
-        
-    if min_max_index[0][0] < min_max_index[1][0]: #First assigns the correct indices, assumes data is shaped as + - + or - + -
+    #!!! Siin jäi pooleni värvide panemine
+    #First assigns the correct indices, assumes data is shaped as + - + or - + -
+    if min_max_index[0][0] < min_max_index[1][0]: #This case if for when the data is min->max->min
         min_index_list = min_max_index[0].tolist()
         max_index_list = min_max_index[1].tolist()
-    else:
+    else:                                         #This case is for when the data is max->min->max, it flips the indices for the iteration logic
         min_index_list = min_max_index[1].tolist()
         max_index_list = min_max_index[0].tolist()
 
@@ -1042,30 +1041,30 @@ def separateMeasurementWithColorIdx(min_max_index, measurement_indices, column_n
                     
     return separated_pair_all, pair_indices
 
-def separateIntoDictValuePair(separated_pairs, const, column_name, token):
-    # Creates a dict{const value the measurement was made at: measurement} 
-    raamat = {}
+# def separateIntoDictValuePair(separated_pairs, const, column_name, token):
+#     # Creates a dict{const value the measurement was made at: measurement} 
+#     raamat = {}
         
-    for val in separated_pairs:
+#     for val in separated_pairs:
         
-        index_to_check = val[0].index[0]
-        val_to_check = ORIGINAL_DATAFRAME[column_name].iloc[index_to_check]
+#         index_to_check = val[0].index[0]
+#         val_to_check = ORIGINAL_DATAFRAME[column_name].iloc[index_to_check]
         
-        #Rounds the values if the measurement needs to check for MvsH, for MvsT can use direct == becasue they are precise
-        val_to_check, const = (round(val_to_check), round(const)) if token == "MvsH" else (val_to_check, const)
+#         #Rounds the values if the measurement needs to check for MvsH, for MvsT can use direct == becasue they are precise
+#         val_to_check, const = (round(val_to_check), round(const)) if token == "MvsH" else (val_to_check, const)
         
-        if val_to_check == const: #or round(val_to_check) == round(const):
+#         if val_to_check == const: #or round(val_to_check) == round(const):
             
-            # print("Check", val_to_check, "Rounded", round(val_to_check))
-            # print("const", const, "rounded", round(const))
-            key = const
+#             # print("Check", val_to_check, "Rounded", round(val_to_check))
+#             # print("const", const, "rounded", round(const))
+#             key = const
             
-            if key not in raamat:
-                raamat[key] = []  # Create an empty list for this key if it doesn't exist
+#             if key not in raamat:
+#                 raamat[key] = []  # Create an empty list for this key if it doesn't exist
                 
-            raamat[key].append(val)  # Append the value to the list associated with the key
+#             raamat[key].append(val)  # Append the value to the list associated with the key
 
-    return raamat
+#     return raamat
 
 def plotMeasurementTimeseries(): 
 
@@ -1103,7 +1102,7 @@ def setColumnForType(indices, type_string):
 
 
 def addParameterColumns(separated_pairs, type_string):
-    global test, indices
+
     temp = "Temperature (K)"
     temp_unit = "K"
     
@@ -1250,12 +1249,10 @@ THICKNESS = getThickness(HEADER)
 COLORS = ["red", "green", "blue", "yellow", "brown", "purple", "orange", "pink", "olive", "magenta"]
 ORIGINAL_DATAFRAME["color"] = "black"
 
-print("_________chechMeasurementType2-----------")  #mis peaks olema selle funktsiooni ebaõnnestumise/veateade? return None? või lihtsalt kaks tühja Seriet?
+print("_________chechMeasurementType2-----------")
 # Tagastab kaks Pandas.Seriest: temperatures_of_interest, magnetic_fields_of_interest
-# edasi peaks veel kontrollima välja filtreerima üksikud punktid mis ei kuulu MvsH ja MvsT andmete hulka
 TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST= checkMeasurementType2(ORIGINAL_DATAFRAME)
-#print(TEMPERATURES_OF_INTEREST, MAGNETIC_FIELDS_OF_INTEREST)
-print("_________end-----------")
+print("_________end-----------\n")
 
 
 print('--------<<<<<<<<<>>>>>>>>>>-----------')
@@ -1270,11 +1267,14 @@ os.makedirs(folder_name, exist_ok = True)
 
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0:
     print('no MvsT detected')
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
     
 else:
     print(' MvsT data detected')
     print(MAGNETIC_FIELDS_OF_INTEREST)
-    kõik = []
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
     
     def cycle(const):
         global unfiltered_MvsT_indices, MvsT_INDICES, separation_index_MvsT, SEPARATED_MvsT, MvsT_pair_indices, koopia
@@ -1293,26 +1293,27 @@ else:
 
     for const in MAGNETIC_FIELDS_OF_INTEREST:
         try:
+            #cycle("const")
             cycle(const)
         except:
             #mingi indikaator näiteks timeseries et need punktid feilisid
+            print("__________________________WARNING_____________________________")
             print(f"-----------------RUN ON {const} OE FAILED--------------------\n")
             print(traceback.format_exc())
-            print("--------------------------------------------------------------\n")
+            print("______________________________________________________________\n")
             pass
 
-print('--------<<<<<<<<<>>>>>>>>>>-----------')
-print('--------<<<<<<<<<>>>>>>>>>>-----------')
-
-# #!!!
-# if TEMPERATURES_OF_INTEREST.size <= 0:
-#     print('no MvsH detected')
-     
+#!!!
+if TEMPERATURES_OF_INTEREST.size <= 0:
+    print('no MvsH detected')
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
     
-# else:
-#     print(' MvsH data detected')
-#     print(TEMPERATURES_OF_INTEREST)
-    
+else:
+    print(' MvsH data detected')
+    print(TEMPERATURES_OF_INTEREST)
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
 #     unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
 #     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     

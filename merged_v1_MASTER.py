@@ -395,41 +395,35 @@ def checkMeasurementType2(measurement_table, discrete_detection_ration = 0.02, m
 
 #----------------------------------------MvsH specific functions-------------------------
 
-def getMeasurementMvsH(const_T_values, bound = 1):
+def getMeasurementMvsH(value, bound = 1):
     """
     Saves the initial row indices of data point values that fall between the MvsH bound from the constant temperature points for further filtering.
     Returns them in a nested list.
 
     Parameters
     ----------
-    const_T_values : PANDAS SERIES OF FLOATS
-        Measurement temperatures.
+    value : FLOAT
+        Measurement temperature.
     bound : FLOAT, optional
         The plus/min bound from the constant value to choose elements by. The default is 1.
 
     Returns
     -------
-    row_indices : LIST OF LIST OF INT
+    indices : LIST OF INT
         Nested list with int indices at each const temp bound.
 
     """
     #Saves all the indices of the points that fall between the bound
     table = ORIGINAL_DATAFRAME[['Temperature (K)', "color"]]
-    filtered_dfs = []
-    row_indices = []
-    
-    for value in const_T_values:
-        lower = value - bound
-        upper = value + bound
-        filtered_df = table[(table['Temperature (K)'] >= lower) & (table['Temperature (K)'] <= upper) & (table['color'] == "black") ]
-        indices = filtered_df.index.tolist()
-        filtered_dfs.append(filtered_df)
-        row_indices.append(indices)
+    lower = value - bound
+    upper = value + bound
+    filtered_df = table[(table['Temperature (K)'] >= lower) & (table['Temperature (K)'] <= upper) & (table['color'] == "black") ]
+    indices = filtered_df.index.tolist()
         
-    return row_indices #filtered_dfs
+    return indices
 
 
-def removeBleedingElement(pairs):
+def removeBleedingElement(pairs):#!!!
     """
     This function ensures that there is no value "bleeding" from the next pair due to the way
     separationIndexForSingleSeries function slices multiple measurements made on the same const value.
@@ -675,7 +669,7 @@ def interpolateMvsH(separated_MvsH, correction_tables):
                                 
     return interpolated_dict #!!1 siin vaata üle func returnib aga ei omista muutujale
 
-def plotMvsH(dict_MvsH):
+def plotMvsH(separated_pairs):
     """
     Plots the MvsH measurement pictures wtih a legend where it specifies the ascending and descending part with different shades.
     Plots the original field and true field values separately with different colors.
@@ -684,7 +678,7 @@ def plotMvsH(dict_MvsH):
 
     Parameters
     ----------
-    dict_MvsH : DICT OF {float : list of list of dataframes}
+    separated_pairs : DICT OF {float : list of list of dataframes}
         Dictionary with MvsH measurements, temp_values : measurement_dataframes format.
 
     Returns
@@ -693,44 +687,42 @@ def plotMvsH(dict_MvsH):
 
     """
     #Plots the MvsH measurement pair with different colors
-    
-    for key1 in dict_MvsH:
         
-        i_pair = 1
+    i_pair = 1
         
-        for df in dict_MvsH[key1]:
+    for df in separated_pairs:
+        
+        colorIdx = df[0].iloc[1].name
+        Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
+        
+        fig, ax = plt.subplots()
+        H1 = df[0]["Magnetic Field (Oe)"]
+        M1 = df[0]["Moment (emu)"]
+        H2 = df[1]["Magnetic Field (Oe)"]
+        M2 = df[1]["Moment (emu)"] 
+        
+        ax.plot(H1 ,M1, color = "grey", label = "Descending")#!!! mis siin värvidega jääb
+        ax.plot(H2, M2, color = "grey", label = "Ascending")
+        
+        if "True Field (Oe)" in df[0]:
             
-            colorIdx = df[0].iloc[1].name
-            Color = ORIGINAL_DATAFRAME["color"].loc[colorIdx]
-            
-            fig, ax = plt.subplots()
-            H1 = df[0]["Magnetic Field (Oe)"]
-            M1 = df[0]["Moment (emu)"]
-            H2 = df[1]["Magnetic Field (Oe)"]
-            M2 = df[1]["Moment (emu)"] 
-            
-            ax.plot(H1 ,M1, color = "grey", label = "Descending")#!!! mis siin värvidega jääb
-            ax.plot(H2, M2, color = "grey", label = "Ascending")
-            
-            if "True Field (Oe)" in df[0]:
-                
-                H1_true = df[0]["True Field (Oe)"]
-                H2_true = df[1]["True Field (Oe)"]   
-                ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
-                ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
-            
-            const_val = int(key1)
-            
-            plot_title = f"M vs H at {const_val} K"
-            ax.set_title(plot_title)
-            ax.set_xlabel("Magnetic field (Oe)")
-            ax.set_ylabel("Moment (emu)")
-            ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
-            ax.grid(True)
-            #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
-            fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K_{i_pair}.png'),bbox_inches = "tight", dpi = 200) #PC
-            i_pair = i_pair + 1
-            plt.show()
+            H1_true = df[0]["True Field (Oe)"]
+            H2_true = df[1]["True Field (Oe)"]   
+            ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
+            ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
+        
+        const_val = int(const)
+        
+        plot_title = f"M vs H at {const_val} K"
+        ax.set_title(plot_title)
+        ax.set_xlabel("Magnetic field (Oe)")
+        ax.set_ylabel("Moment (emu)")
+        ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
+        ax.grid(True)
+        #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
+        fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K_{i_pair}.png'),bbox_inches = "tight", dpi = 200) #PC
+        i_pair = i_pair + 1
+        plt.show()
         
     return None
 #-----------------------------MvsT specific functions--------------------------------
@@ -978,13 +970,10 @@ def separateMeasurementWithColorIdx(min_max_index, measurement_indices, column_n
         DESCRIPTION.
 
     """
-    
+    global color_index
     separated_pair_all = []
     pair_indices = []
-    
-    color_index = 0
      
-    #!!! Siin jäi pooleni värvide panemine
     #First assigns the correct indices, assumes data is shaped as + - + or - + -
     if min_max_index[0][0] < min_max_index[1][0]: #This case if for when the data is min->max->min
         min_index_list = min_max_index[0].tolist()
@@ -1007,7 +996,6 @@ def separateMeasurementWithColorIdx(min_max_index, measurement_indices, column_n
             
             sliced1 = measurement.loc[min_index_list[iteration_index]:max_index] #paaride data
             separated_pair.append(sliced1)
-            
             ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index, "color"] = COLORS[color_index] #värvid paaridele
             
             indices_pair1 = ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index].index.tolist() #paaride indeksid
@@ -1276,7 +1264,7 @@ else:
     print('--------<<<<<<<<<>>>>>>>>>>-----------')
     print('--------<<<<<<<<<>>>>>>>>>>-----------')
     
-    def cycle(const):
+    def allUniqueConstMeasurementsMvsT(const):
         global unfiltered_MvsT_indices, MvsT_INDICES, separation_index_MvsT, SEPARATED_MvsT, MvsT_pair_indices, koopia
         
         unfiltered_MvsT_indices = getMeasurementMvsT(const)
@@ -1290,11 +1278,12 @@ else:
         addParameterColumns(SEPARATED_MvsT, "MvsT")
         appendAndSave(SEPARATED_MvsT, "MvsT")
         return None
-
+    
+    color_index = 0
     for const in MAGNETIC_FIELDS_OF_INTEREST:
         try:
-            #cycle("const") #UNCOMMENTI SEE KUI TAHAD NÄHA KUIDAS ERRORI KORRAL KÄITUB, SUVALINE ARGUMENT SELLEL MIS ERRORI VISKAB LIHTSALT
-            cycle(const) #ÕIGE MILLEGA TÖÖTAB
+            #allUniqueConstMeasurementsMvsT("const") #UNCOMMENTI SEE KUI TAHAD NÄHA KUIDAS ERRORI KORRAL KÄITUB, SUVALINE ARGUMENT SELLEL MIS ERRORI VISKAB LIHTSALT
+            allUniqueConstMeasurementsMvsT(const) #ÕIGE MILLEGA TÖÖTAB
         except:
             #mingi indikaator näiteks timeseries et need punktid feilisid
             print("__________________________WARNING_____________________________")
@@ -1314,46 +1303,44 @@ else:
     print(TEMPERATURES_OF_INTEREST)
     print('--------<<<<<<<<<>>>>>>>>>>-----------')
     print('--------<<<<<<<<<>>>>>>>>>>-----------')
-#     unfiltered_MvsH_INDICES = getMeasurementMvsH(TEMPERATURES_OF_INTEREST)
-#     MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_INDICES)
     
-#     separation_indices_MvsH = separationIndexForMultipleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
-#     # test_MvsH1 = copy.deepcopy(MvsH_INDICES)
-#     #try:#siin võib juhtuda et liiga väike n siis tulevad valesti ekstreemumid, siis custom error
-#     SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_indices_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
-#     # except IndexError as ie:
-#     #     raise ValueError("separationIndexForSingleSeries funktsiooni n argumenti peab muutma, ekstreemumid tulevad valesti sellise n puhul") from ie
+    def allUniqueConstMeasurementsMvsH(const):
+        global unfiltered_MvsH_indices, MvsH_INDICES, separation_index_MvsH, SEPARATED_MvsH, MvsH_pair_indices, kõik, correction_field_value
+        
+        unfiltered_MvsH_indices = getMeasurementMvsH(const)
+        MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_indices)
+        separation_index_MvsH = separationIndexForSingleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
+        SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
+        
+        correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
+        CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
+        interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
+        
+        plotMvsH(SEPARATED_MvsH)
+        
+        ORIGINAL_DATAFRAME.loc[MvsH_INDICES, "Type"] = "MvsH"
+        addParameterColumns(SEPARATED_MvsH, "MvsH")
+        appendAndSave(SEPARATED_MvsH, "MvsH")
+        return None
     
-#     #test_MvsH2 = copy.deepcopy(SEPARATED_MvsH)
-    
-# #    SEPARATED_MvsH = removeBleedingElement(SEPARATED_MvsH)
-#     try:
-#         correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
-#         CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
-        
-#         interpolateMvsH(SEPARATED_MvsH, CORRECTION_TABLES)
-        
-#         DICT_MvsH = separateIntoDictValuePair(SEPARATED_MvsH, TEMPERATURES_OF_INTEREST, "Temperature (K)", "MvsH")
-        
-#         plotMvsH(DICT_MvsH)
-        
-#         setColumnForType(MvsH_INDICES, "MvsH")
-#         addParameterColumns(SEPARATED_MvsH, "MvsH")#this function modifies SEPARATED_MvsH which inturn modifies DICT_MvsH since it's a global mutable variable
-#         appendAndSave(DICT_MvsH, "MvsH")
-#     except IndexError:
-#         print("välja sõltuvuse error")
+    color_index = 0
+    for const in TEMPERATURES_OF_INTEREST:
+        try:
+            #allUniqueConstMeasurementsMvsH("const") #UNCOMMENTI SEE KUI TAHAD NÄHA KUIDAS ERRORI KORRAL KÄITUB, SUVALINE ARGUMENT SELLEL MIS ERRORI VISKAB LIHTSALT
+            allUniqueConstMeasurementsMvsH(const) #ÕIGE MILLEGA TÖÖTAB
+        except:
+            #mingi indikaator näiteks timeseries et need punktid feilisid
+            print("__________________________WARNING_____________________________")
+            print(f"-----------------RUN ON {const} K FAILED--------------------\n")
+            print(traceback.format_exc())
+            print("______________________________________________________________\n")
+            pass
 
-# print('--------<<<<<<<<<>>>>>>>>>>-----------')
-# print('--------<<<<<<<<<>>>>>>>>>>-----------')
-
-
-# if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
-#     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')
-
+if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
+    print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')
 
 #Plots temp, field and moment against time
 plotMeasurementTimeseries()
-
 
 #Error       
 # momentDivDimensionUncertaintyError(SEPARATED_MvsH, SAMPLE_MASS_g, 0.0001) #for moment/mass uncertainty

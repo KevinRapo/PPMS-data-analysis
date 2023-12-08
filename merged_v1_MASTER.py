@@ -1293,8 +1293,8 @@ else:
 
     for const in MAGNETIC_FIELDS_OF_INTEREST:
         try:
-            #cycle("const")
-            cycle(const)
+            #cycle("const") #UNCOMMENTI SEE KUI TAHAD NÄHA KUIDAS ERRORI KORRAL KÄITUB, SUVALINE ARGUMENT SELLEL MIS ERRORI VISKAB LIHTSALT
+            cycle(const) #ÕIGE MILLEGA TÖÖTAB
         except:
             #mingi indikaator näiteks timeseries et need punktid feilisid
             print("__________________________WARNING_____________________________")

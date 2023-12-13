@@ -452,13 +452,13 @@ def removeBleedingElement(pairs):#!!!
         
         second = pair[1]
         
-        try:
-            first_max = max(first["Magnetic Field (Oe)"])
-            second_max = max(second["Magnetic Field (Oe)"])
-            ratio = first_max/second_max
-        except ValueError:
-            error_message = "Change separationIndexForSingleSeries argument n for correct extrema points"
-            showExtremaError(error_message)
+        # try:
+        first_max = max(first["Magnetic Field (Oe)"])
+        second_max = max(second["Magnetic Field (Oe)"])
+        ratio = first_max/second_max
+        # except ValueError:
+        #     error_message = "Change separationIndexForSingleSeries argument n for correct extrema points"
+        #     showExtremaError(error_message)
         
         new_list = []
 
@@ -498,15 +498,19 @@ def roundFieldForCorrection(pairs):
     values = []
     for pair in pairs:
         first_max = max(pair[0]["Magnetic Field (Oe)"])
-        second_max = max(pair[1]["Magnetic Field (Oe)"])
+        second_max = max(pair[1]["Magnetic Field (Oe)"]) if len(pair[1]) >= 1 else None
         max_range = None
         
         # print(f"{first_max=}")
         # print(f"{second_max=}")
-        if first_max > second_max:
+        
+        if second_max is not None:
+            if first_max > second_max:
+                max_range = first_max
+            elif first_max < second_max:
+                max_range = second_max
+        else:
             max_range = first_max
-        elif first_max < second_max:
-            max_range = second_max
             
         if max_range >= 10000:
             nr = round(max_range / 1000) * 1000
@@ -549,6 +553,7 @@ def searchCorrectionTable(folder_path, number):
             if difference < min_difference:
                 min_difference = difference
                 closest_match = filename
+                
         except (ValueError, IndexError):
             # Ignore filenames that don't have a numeric part or invalid parts
             pass
@@ -643,15 +648,18 @@ def interpolateMvsH(separated_MvsH, correction_tables):
         # print("max val",max_val)
         
         first_max = max(pair[0]["Magnetic Field (Oe)"])
-        second_max = max(pair[1]["Magnetic Field (Oe)"])
+        second_max = max(pair[1]["Magnetic Field (Oe)"]) if len(pair[1]) >= 1 else None
         max_range = None
         
         # print(f"{first_max=}")
         # print(f"{second_max=}")
-        if first_max > second_max:
+        if second_max is not None:
+            if first_max > second_max:
+                max_range = first_max
+            elif first_max < second_max:
+                max_range = second_max
+        else:
             max_range = first_max
-        elif first_max < second_max:
-            max_range = second_max
             
         for key in correction_tables:
             if key - 200 <= max_range <= key + 200:
@@ -711,16 +719,14 @@ def plotMvsH(separated_pairs):
             ax.plot(H1_true, M1, color = Color, label = "True Field Descending", alpha = 0.5)
             ax.plot(H2_true, M2, color = Color, label = "True Field Ascending")
         
-        const_val = int(const)
-        
-        plot_title = f"M vs H at {const_val} K"
+        plot_title = f"M vs H at {const} K"
         ax.set_title(plot_title)
         ax.set_xlabel("Magnetic field (Oe)")
         ax.set_ylabel("Moment (emu)")
         ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
         ax.grid(True)
-        #fig.savefig(f"C:/Users/kevin/OneDrive/Desktop/Andmetöötlus/Projekt_andmed1/MvsH_graph_at_{val}K.png",bbox_inches = "tight", dpi = 200) #laptop
-        fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const_val}K_{i_pair}.png'),bbox_inches = "tight", dpi = 200) #PC
+
+        fig.savefig(os.path.join(folder_name,f'MvsH_graph_at_{const}K_{i_pair}.png'),bbox_inches = "tight", dpi = 200) #PC
         i_pair = i_pair + 1
         plt.show()
         
@@ -768,7 +774,6 @@ def plotMvsT(separated_pairs, const):
 
     """
    
-
     fig, ax = plt.subplots()
     i_pair = 1
 
@@ -791,9 +796,10 @@ def plotMvsT(separated_pairs, const):
         ax.legend() #Hetkel legend nimetab selle järgi et esimene tsükkel on kasvav ja teine kahanev ehk eeldus et mõõtmisel temp algas kasvamisest
         ax.grid(True)
         i_pair = i_pair + 1
+        
     fig.savefig(os.path.join(folder_name,f'MvsT_graph_at_{const}K.png'),bbox_inches = "tight", dpi = 200)
     plt.show()
-        
+    
     return None
 
 #---------------------------------------Universal functions that both paths use----------------------------------------------
@@ -913,41 +919,18 @@ def separationIndexForSingleSeries(indices, column_name, x = 0.1): #!!! https://
     plt.scatter(index, local_peaks['min'], c='r', label='Minima')
     plt.scatter(index, local_peaks['max'], c='g', label='Maxima')
     plt.plot(index, data[column_name], label=column_name)
-    plt.title(f"Extrema graph for {const}\n {title}")
+    
+    if column_name == "Temperature (K)":
+        unit = "Oe"
+    else:
+        unit = "K"
+        
+    plt.title(f"Extrema graph for {const} {unit} \n {title}")
     plt.legend()
     plt.show()
     min_max = [min_indices, max_indices]
     return min_max 
 
-# # Iterates the functionality of separationIndexForSingleSeries 
-# def separationIndexForMultipleSeries(indices, column_name, x=0.1):
-#     """
-#     Iterates the separationIndexForSingleSeries function over all the separate indices and appends it's results.
-    
-#     This is used for separating single measurements made on the same const value into two ascending/descending pair.
-
-#     Parameters
-#     ----------
-#     indices : LIST OF LIST OF INT
-#         Nested list with measurement indices.
-#     column_name : STRING
-#         Name of the column to analyze based on the measurement.
-
-#     Returns
-#     -------
-#     indices_for_separation : LIST OF TUPLE OF (pandas.Index,pandas.Index)
-#         List with the indices (int) for the separation in a tuple.
-
-#     """
-#     indices_for_separation = []
-    
-#     for measurement_index in indices:
-        
-#         measurement = ORIGINAL_DATAFRAME.loc[measurement_index, column_name]
-#         separation_indices = separationIndexForSingleSeries(measurement, column_name,x)
-#         indices_for_separation.append(separation_indices)
-        
-#     return indices_for_separation
 
 def separateMeasurementWithColorIdx(min_max_index, measurement_indices, column_name): 
     """
@@ -1029,31 +1012,10 @@ def separateMeasurementWithColorIdx(min_max_index, measurement_indices, column_n
                     
     return separated_pair_all, pair_indices
 
-# def separateIntoDictValuePair(separated_pairs, const, column_name, token):
-#     # Creates a dict{const value the measurement was made at: measurement} 
-#     raamat = {}
-        
-#     for val in separated_pairs:
-        
-#         index_to_check = val[0].index[0]
-#         val_to_check = ORIGINAL_DATAFRAME[column_name].iloc[index_to_check]
-        
-#         #Rounds the values if the measurement needs to check for MvsH, for MvsT can use direct == becasue they are precise
-#         val_to_check, const = (round(val_to_check), round(const)) if token == "MvsH" else (val_to_check, const)
-        
-#         if val_to_check == const: #or round(val_to_check) == round(const):
-            
-#             # print("Check", val_to_check, "Rounded", round(val_to_check))
-#             # print("const", const, "rounded", round(const))
-#             key = const
-            
-#             if key not in raamat:
-#                 raamat[key] = []  # Create an empty list for this key if it doesn't exist
-                
-#             raamat[key].append(val)  # Append the value to the list associated with the key
-
-#     return raamat
-
+def setPointsColor():
+    
+    
+    return None
 def plotMeasurementTimeseries(): 
 
     # Create subplots with shared x-axis
@@ -1253,6 +1215,7 @@ ORIGINAL_DATAFRAME["Type"] = ""
 folder_name = os.path.splitext(DATAFILE_PATH)[0] + ""
 os.makedirs(folder_name, exist_ok = True)
 
+# MvsT cycle
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0:
     print('no MvsT detected')
     print('--------<<<<<<<<<>>>>>>>>>>-----------')
@@ -1261,17 +1224,27 @@ if MAGNETIC_FIELDS_OF_INTEREST.size <= 0:
 else:
     print(' MvsT data detected')
     print(MAGNETIC_FIELDS_OF_INTEREST)
-    print('--------<<<<<<<<<>>>>>>>>>>-----------')
-    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+
+    test1 = []
     
     def allUniqueConstMeasurementsMvsT(const):
-        global unfiltered_MvsT_indices, MvsT_INDICES, separation_index_MvsT, SEPARATED_MvsT, MvsT_pair_indices, koopia
+        
+        global unfiltered_MvsT_indices, MvsT_INDICES, separation_index_MvsT, SEPARATED_MvsT, MvsT_pair_indices,\
+            test1
         
         unfiltered_MvsT_indices = getMeasurementMvsT(const)
         MvsT_INDICES = filterMeasurementIndices(unfiltered_MvsT_indices)
         separation_index_MvsT = separationIndexForSingleSeries(MvsT_INDICES, "Temperature (K)")
-        SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
         
+        try:
+            SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+            
+        except IndexError:
+            print("\nChanged separateMeasurementWithColorIdx parameter x = 0.5, was 0.1\n")
+            
+            separation_index_MvsT = separationIndexForSingleSeries(MvsT_INDICES, "Temperature (K)", x=0.5)# the indices where the separation is going to be done
+            SEPARATED_MvsT, MvsT_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsT, MvsT_INDICES, "Temperature (K)")
+            
         plotMvsT(SEPARATED_MvsT, const)
         
         ORIGINAL_DATAFRAME.loc[MvsT_INDICES, "Type"] = "MvsT"
@@ -1279,6 +1252,7 @@ else:
         appendAndSave(SEPARATED_MvsT, "MvsT")
         return None
     
+    #For cycling the colors on MvsT run
     color_index = 0
     for const in MAGNETIC_FIELDS_OF_INTEREST:
         try:
@@ -1290,9 +1264,11 @@ else:
             print(f"-----------------RUN ON {const} OE FAILED--------------------\n")
             print(traceback.format_exc())
             print("______________________________________________________________\n")
-            pass
-
-#!!!
+            pass      
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+    
+#!!! MvsH cycle
 if TEMPERATURES_OF_INTEREST.size <= 0:
     print('no MvsH detected')
     print('--------<<<<<<<<<>>>>>>>>>>-----------')
@@ -1301,16 +1277,28 @@ if TEMPERATURES_OF_INTEREST.size <= 0:
 else:
     print(' MvsH data detected')
     print(TEMPERATURES_OF_INTEREST)
-    print('--------<<<<<<<<<>>>>>>>>>>-----------')
-    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+
+    test2 = []
     
     def allUniqueConstMeasurementsMvsH(const):
-        global unfiltered_MvsH_indices, MvsH_INDICES, separation_index_MvsH, SEPARATED_MvsH, MvsH_pair_indices, kõik, correction_field_value
+        
+        global unfiltered_MvsH_indices, MvsH_INDICES, separation_index_MvsH, SEPARATED_MvsH, MvsH_pair_indices, correction_field_value,\
+            CORRECTION_TABLES, test2
         
         unfiltered_MvsH_indices = getMeasurementMvsH(const)
+        
+        if len(unfiltered_MvsH_indices) == 0:
+            #print("*********************")
+            print(f"\nFalse positive for MvsH at {const} K\nNo actual measurement at that temperature")
+            #print("*********************")
+            return None
+        
         MvsH_INDICES = filterMeasurementIndices(unfiltered_MvsH_indices)
         separation_index_MvsH = separationIndexForSingleSeries(MvsH_INDICES, "Magnetic Field (Oe)")
+        
         SEPARATED_MvsH, MvsH_pair_indices = separateMeasurementWithColorIdx(separation_index_MvsH, MvsH_INDICES, "Magnetic Field (Oe)")
+        
+        #SEPARATED_MvsH = removeBleedingElement(SEPARATED_MvsH)
         
         correction_field_value = roundFieldForCorrection(SEPARATED_MvsH)
         CORRECTION_TABLES = CorrectionTableToDict(correction_field_value)
@@ -1323,19 +1311,23 @@ else:
         appendAndSave(SEPARATED_MvsH, "MvsH")
         return None
     
+    # For cycling the colors on the MvsH run
     color_index = 0
     for const in TEMPERATURES_OF_INTEREST:
         try:
             #allUniqueConstMeasurementsMvsH("const") #UNCOMMENTI SEE KUI TAHAD NÄHA KUIDAS ERRORI KORRAL KÄITUB, SUVALINE ARGUMENT SELLEL MIS ERRORI VISKAB LIHTSALT
             allUniqueConstMeasurementsMvsH(const) #ÕIGE MILLEGA TÖÖTAB
+            
         except:
             #mingi indikaator näiteks timeseries et need punktid feilisid
             print("__________________________WARNING_____________________________")
             print(f"-----------------RUN ON {const} K FAILED--------------------\n")
             print(traceback.format_exc())
-            print("______________________________________________________________\n")
+            #print("______________________________________________________________\n")
             pass
-
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+    print('--------<<<<<<<<<>>>>>>>>>>-----------')
+    
 if MAGNETIC_FIELDS_OF_INTEREST.size <= 0 and TEMPERATURES_OF_INTEREST.size <= 0:
     print('Error, ei suutnud eraldada MvsH ja MvsT mõõtmisi')
 

@@ -97,7 +97,7 @@ def determineDatafileType(header):
         Data file type, "VSM" or "ACMS"
 
     """
-
+    global option_specific_line
     token = "error - unknown datafile format"
     
     option_specific_line = header.iloc[1, 0]
@@ -423,7 +423,7 @@ def getMeasurementMvsH(value, bound = 1):
     return indices
 
 
-def removeBleedingElement(pairs):#!!!
+def removeBleedingElement(pairs):
     """
     This function ensures that there is no value "bleeding" from the next pair due to the way
     separationIndexForSingleSeries function slices multiple measurements made on the same const value.
@@ -934,7 +934,10 @@ def separationIndexForSingleSeries(indices, column_name, x = 0.1):# https://stac
 
 def separateMeasurements(min_max_index, measurement_indices, column_name): 
     """
-    Separates the points based on the separation indices and returns the separated series in pairs
+    Separates the points based on the separation indices and returns the separated series in pairs.
+    
+    Separates them based on the expected way: from the first extrema to the second one and then to the 
+    third one, so it creates a pair with ascending/descending (not necessarily in this order) part.
 
     Parameters
     ----------
@@ -947,13 +950,13 @@ def separateMeasurements(min_max_index, measurement_indices, column_name):
 
     Returns
     -------
-    separated_pair : LIST OF LIST OF DATAFRAME
+    separated_pairs : LIST OF LIST OF DATAFRAME
         All the measurement pairs in dataframe pairs.
-    pair_indices : TYPE
-        DESCRIPTION.
+    pair_indices : LIST OF LIST OF INT
+        All of the indices for the pairs in a nested list.
 
     """
-    global color_index
+
     separated_pair_all = []
     pair_indices = []
      
@@ -971,14 +974,14 @@ def separateMeasurements(min_max_index, measurement_indices, column_name):
 
     for max_index in max_index_list: #Slices them from min to max and from max to min pairs
         
-        separated_pair = []
+        separated_pairs = []
         indices_pair1 = []
         indices_pair2 = []
         
         if max_index in measurement_indices: #Checks if 
             
             sliced1 = measurement.loc[min_index_list[iteration_index]:max_index] #paaride data
-            separated_pair.append(sliced1)
+            separated_pairs.append(sliced1)
             
             indices_pair1 = ORIGINAL_DATAFRAME.loc[min_index_list[iteration_index]:max_index].index.tolist() #paaride indeksid
             
@@ -999,14 +1002,28 @@ def separateMeasurements(min_max_index, measurement_indices, column_name):
             break
         
         pair_indices.append(indices_pair1 + indices_pair2)
-        separated_pair.append(sliced2)
-        separated_pair_all.append(separated_pair)
+        separated_pairs.append(sliced2)
+        separated_pair_all.append(separated_pairs)
         
         iteration_index += 1
         
     return separated_pair_all, pair_indices
 
 def setPointsColor(pairs):
+    """
+    Assigns a color to each pair in the original measurement dataframe.
+
+    Parameters
+    ----------
+    pairs : LIST OF LIST OF DATAFRAMES
+        All the measurement pairs in dataframe pairs.
+
+    Returns
+    -------
+    None.
+
+    """
+    
     global first_indices, second_indices, color_index, all_indices
     
     for pair in pairs:
@@ -1025,7 +1042,15 @@ def setPointsColor(pairs):
             
     return None
 
-def plotMeasurementTimeseries(): #
+def plotMeasurementTimeseries():
+    """
+    Plots temperature, field and moment against time based on the colors they have in the original dataframe.
+
+    Returns
+    -------
+    None.
+
+    """
     
     # Create subplots with shared x-axis
     fig, axes = plt.subplots(nrows=3, sharex=True)
@@ -1052,15 +1077,23 @@ def plotMeasurementTimeseries(): #
     
     return None
 
+def addParameterColumns(separated_pairs, data_type):
+    """
+    Adds multiple columns of interest to the SEPARATED_* variable and also adds a unit row with the
+    unit of the column.
 
-def setColumnForType(indices, type_string):
-       
-    ORIGINAL_DATAFRAME.loc[indices, "Type"] = type_string
-        
-    return None
+    Parameters
+    ----------
+    separated_pairs : LIST OF LIST OF DATAFRAME
+        All the measurement pairs in dataframe pairs.
+    data_type : STRING
+        Measurement type.
 
+    Returns
+    -------
+    None.
 
-def addParameterColumns(separated_pairs, type_string):
+    """
 
     temp = "Temperature (K)"
     temp_unit = "K"
@@ -1097,14 +1130,14 @@ def addParameterColumns(separated_pairs, type_string):
 
             indices = series.index
                 
-            if type_string == "MvsH":
+            if data_type == "MvsH":
                 
                 series[temp] = ORIGINAL_DATAFRAME.loc[indices, temp]
                 unit_row = pd.DataFrame({ field: [field_unit], moment: [moment_unit], "True Field (Oe)": [field_unit], temp: [temp_unit],
                                         error: [moment_unit], momentDivMass: [momentDivMass_unit], momentDivArea: [momentDivArea_unit],
                                         momentDivVolume: [momentDivVolume_unit],susceptibility: [susceptibility_unit], oneOverSusceptibility: [oneOverSusceptibility_unit] }, index=['unit'])
                 
-            elif type_string == "MvsT":
+            elif data_type == "MvsT":
                 
                 series[field] = ORIGINAL_DATAFRAME.loc[indices, field]
                 unit_row = pd.DataFrame({ temp: [temp_unit], moment: [moment_unit], field: [field_unit],
@@ -1126,14 +1159,29 @@ def addParameterColumns(separated_pairs, type_string):
     return None
 
 # Siin on ka üks huvitav error kui file excelis avatud sama aeg siis ei luba uut üle salvestada
-def appendAndSave(separated_pairs, dType):
+def appendAndSave(separated_pairs, data_type):
+    """
+    Appends the separate pair parts back into one after all the processing and saves them to a csv file
+
+    Parameters
+    ----------
+    separated_pairs : LIST OF LIST OF DATAFRAME
+        All the measurement pairs in dataframe pairs.
+    data_type : STRING
+        Measurement type.
+
+    Returns
+    -------
+    None.
+
+    """
     
     i_pair = 1
     for pair in separated_pairs:
         
         result = pd.concat([pair[0], pair[1].tail(pair[1].shape[0]-1)])
         
-        file_name = f'{dType}_data_at_{const}_{i_pair}.csv'
+        file_name = f'{data_type}_data_at_{const}_{i_pair}.csv'
         
         full_path = os.path.join(folder_name, file_name)
         
@@ -1142,7 +1190,7 @@ def appendAndSave(separated_pairs, dType):
         i_pair = i_pair + 1
             
     return None
-
+# -------------------------------------------- ???
 def showExtremaError(message):
     
     root = tk.Tk()
